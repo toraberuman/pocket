@@ -1,0 +1,4 @@
+dist/
+.svelte-kit/
+.wrangler/
+node_modules/

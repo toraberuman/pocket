@@ -1,0 +1,22 @@
+services:
+  pocket-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pocket-trip-app
+    ports:
+      - "5173:5173"
+    environment:
+      MAPS_API_KEY: ${MAPS_API_KEY:-}
+      GOOGLE_CLIENT_EMAIL: ${GOOGLE_CLIENT_EMAIL:-}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY:-}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - .:/app
+      - pocket_node_modules:/app/node_modules
+    stdin_open: true
+    tty: true
+
+volumes:
+  pocket_node_modules:
