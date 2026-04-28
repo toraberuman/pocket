@@ -76,13 +76,63 @@ npm run check
 
 ## D1
 
-建立 schema：
+Schema 在 [db/schema.sql](/D:/onsen.dansi/pocket/db/schema.sql)。
+
+建立本地 schema：
 
 ```bash
-npm run db:apply
+npm run db:apply:local
 ```
 
-Schema 在 [db/schema.sql](/D:/onsen.dansi/pocket/db/schema.sql)。
+建立遠端 schema：
+
+```bash
+npm run db:apply:remote
+```
+
+檢查 table：
+
+```bash
+npm run db:tables:local
+npm run db:tables:remote
+```
+
+把 `data/2026korea.csv` 匯入 D1：
+
+```bash
+npm run db:import:local
+npm run db:import:remote
+```
+
+如果你想先看匯入 SQL：
+
+```bash
+npm run db:print-sql
+```
+
+### 建議順序
+
+```bash
+npm run db:apply:remote
+npm run db:tables:remote
+npm run db:import:remote
+```
+
+### Cloudflare Deploy
+
+先做 production build：
+
+```bash
+npm run build
+```
+
+再部署：
+
+```bash
+npm run deploy
+```
+
+第一次部署前，請先確認 [wrangler.jsonc](/D:/onsen.dansi/pocket/wrangler.jsonc) 裡的 `database_id` 已換成你的 D1 真實 ID。
 
 ## Secrets
 

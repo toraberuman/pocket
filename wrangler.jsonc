@@ -3,6 +3,10 @@
   "name": "pocket-trip-app",
   "main": ".svelte-kit/cloudflare/_worker.js",
   "compatibility_date": "2026-04-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".svelte-kit/cloudflare"
+  },
   "observability": {
     "enabled": true
   },
@@ -10,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "pocket_trips",
-      "database_id": "replace-me"
+      "database_id": "cdcdb9e3-c8aa-4d5b-9ed1-97b4dbb11939"
     }
   ]
 }

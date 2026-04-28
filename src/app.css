@@ -1,6 +1,6 @@
 :root {
   --bg: #fdfbf2;
-  --surface: rgba(255, 255, 255, 0.92);
+  --surface: #ffffff;
   --surface-strong: #ffffff;
   --border: rgba(18, 28, 45, 0.08);
   --ink: #172033;
@@ -30,10 +30,7 @@ body {
 body {
   font-family: var(--font-sans);
   color: var(--ink);
-  background:
-    radial-gradient(circle at top left, rgba(230, 80, 79, 0.05), transparent 24%),
-    radial-gradient(circle at top right, rgba(49, 107, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, #fdfbf2 0%, #f5f4ef 100%);
+  background: #f8f6ef;
 }
 
 a {

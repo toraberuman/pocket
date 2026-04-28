@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import type { PageData } from "./$types";
   import { groupByDay } from "$lib/utils";
   import type { TripItemDraft } from "$lib/types";
@@ -12,6 +12,11 @@
     subtotal?: number;
   };
 
+  type ParsedRoomField = {
+    label: string;
+    value: string;
+  };
+
   let { data }: { data: PageData } = $props();
   const trip = $derived(data.trip);
   const grouped = $derived(groupByDay(trip.items));
@@ -23,10 +28,10 @@
     住宿: "stay",
     食: "food",
     景點: "spot",
-    買物: "shop",
+    購物: "shop",
     體驗: "experience",
+    季節: "seasonal",
     櫻花: "seasonal",
-    紅葉: "seasonal",
     其他: "default"
   };
 
@@ -66,12 +71,33 @@
     return numberValue(detailOf(item)[key]);
   }
 
+  function imageUrl(item: TripItemDraft) {
+    return detailText(item, "imageUrl");
+  }
+
+  function isUrl(value?: string) {
+    return Boolean(value && /^https?:\/\//i.test(value));
+  }
+
   function categoryClass(item: TripItemDraft) {
+    if (isTransport(item)) return "transport";
+    if (isStay(item)) return "stay";
     return categoryTone[item.category] || "default";
   }
 
   function isTransport(item: TripItemDraft) {
     return item.category === "交通";
+  }
+
+  function isStay(item: TripItemDraft) {
+    return Boolean(
+      item.category === "住宿" ||
+        detailText(item, "roomInfo") ||
+        detailText(item, "roomType") ||
+        detailText(item, "checkIn") ||
+        detailText(item, "checkOut") ||
+        detailText(item, "meals")
+    );
   }
 
   function transportMode(item: TripItemDraft) {
@@ -86,13 +112,23 @@
     return detailText(item, "trainNumber") || detailText(item, "flightNumber");
   }
 
+  function mealTags(item: TripItemDraft) {
+    const raw = detailText(item, "meals");
+    if (!raw) return [];
+
+    return raw
+      .split(/[\n,，、/]+/)
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
   function summaryLine(item: TripItemDraft) {
     if (isTransport(item)) {
       return transportMetaLine(item);
     }
 
-    if (item.category === "住宿") {
-      return detailText(item, "roomType") || item.place.nativeName || item.notes || "";
+    if (isStay(item)) {
+      return roomFields(item)[0]?.value || detailText(item, "roomType") || item.place.nativeName || item.notes || "";
     }
 
     return item.place.nativeName || item.notes || "";
@@ -100,12 +136,25 @@
 
   function formatMoney(item: TripItemDraft) {
     if (!item.amount) return "";
-    return `${item.currency || ""} ${item.amount.toLocaleString()}`.trim();
+    return `${currencySymbol(item.currency)}${item.amount.toLocaleString()}`.trim();
   }
 
   function formatAmount(value?: number, currency?: string) {
     if (typeof value !== "number") return "";
-    return `${currency || ""} ${value.toLocaleString()}`.trim();
+    return `${currencySymbol(currency)}${value.toLocaleString()}`.trim();
+  }
+
+  function currencySymbol(currency?: string) {
+    switch ((currency || "").toUpperCase()) {
+      case "KRW":
+        return "₩";
+      case "JPY":
+        return "¥";
+      case "TWD":
+        return "$";
+      default:
+        return currency ? `${currency} ` : "";
+    }
   }
 
   function routeStart(item: TripItemDraft) {
@@ -130,13 +179,13 @@
   function routeStartDetail(item: TripItemDraft) {
     const name = detailText(item, "fromName");
     const terminal = detailText(item, "fromTerminal");
-    return [name, terminal].filter(Boolean).join(" · ");
+    return [name, terminal].filter(Boolean).join(" 繚 ");
   }
 
   function routeEndDetail(item: TripItemDraft) {
     const name = detailText(item, "toName");
     const terminal = detailText(item, "toTerminal");
-    return [name, terminal].filter(Boolean).join(" · ");
+    return [name, terminal].filter(Boolean).join(" 繚 ");
   }
 
   function transportMetaLine(item: TripItemDraft) {
@@ -149,13 +198,13 @@
       detailNumber(item, "distanceKm") ? `${detailNumber(item, "distanceKm")} km` : undefined
     ].filter(Boolean);
 
-    return bits.join(" · ");
+    return bits.join(" 繚 ");
   }
 
   function transportRouteText(item: TripItemDraft) {
     const start = routeStart(item);
     const end = routeEnd(item);
-    if (start && end) return `${start} → ${end}`;
+    if (start && end) return `${start} ??${end}`;
     return detailText(item, "routeText") || item.place.nativeName || item.place.name;
   }
 
@@ -178,13 +227,16 @@
   }
 
   function infoRows(item: TripItemDraft) {
+    const roomInfo = detailText(item, "roomInfo");
+    const roomType = detailText(item, "roomType");
+    const hasParsedRoomFields = roomFields(item).length > 0;
     const rows = [
       { label: "地址", value: item.place.address },
       { label: "電話", value: item.place.phone },
       { label: "官網", value: item.place.websiteUrl, href: item.place.websiteUrl },
       { label: "地圖", value: item.place.mapsUrl ? "Google Maps" : undefined, href: item.place.mapsUrl },
-      { label: "房型", value: detailText(item, "roomType") },
-      { label: "房型資訊", value: detailText(item, "roomInfo") },
+      { label: "房型", value: hasParsedRoomFields ? undefined : roomType },
+      { label: "房型資訊", value: hasParsedRoomFields ? undefined : roomInfo && roomInfo !== roomType ? roomInfo : undefined },
       { label: "餐食", value: detailText(item, "meals") },
       { label: "車次", value: detailText(item, "trainNumber") },
       { label: "車廂等級", value: detailText(item, "cabinClass") },
@@ -195,7 +247,17 @@
       { label: "備註", value: item.notes }
     ];
 
-    return rows.filter((row) => row.value);
+    return rows
+      .filter((row) => row.value)
+      .map((row) => ({
+        ...row,
+        href: row.href || (isUrl(String(row.value)) ? String(row.value) : undefined)
+      }));
+  }
+
+  function roomFields(item: TripItemDraft) {
+    const roomInfo = detailText(item, "roomInfo") || detailText(item, "roomType") || "";
+    return parseRoomFields(roomInfo);
   }
 
   function orderItems(item: TripItemDraft) {
@@ -250,6 +312,58 @@
     return code ? `${provider} ${code}` : provider;
   }
 
+  function closeDetails() {
+    selectedItem = null;
+  }
+
+  function onDialogKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      closeDetails();
+    }
+  }
+
+  function parseRoomFields(raw: string): ParsedRoomField[] {
+    if (!raw) return [];
+
+    const normalized = raw.replace(/\s+/g, " ").trim();
+    if (!normalized) return [];
+
+    const newlineChunks = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const parsedByLine = newlineChunks
+      .map(parseRoomFieldLine)
+      .filter((field): field is ParsedRoomField => Boolean(field));
+
+    if (parsedByLine.length >= 2 || (parsedByLine.length === 1 && newlineChunks.length === 1)) {
+      return parsedByLine;
+    }
+
+    const labelPattern = /(Room\d+|size|房型資訊|餐廳\/設施)\s*[:：]/gi;
+    const matches = [...normalized.matchAll(labelPattern)];
+    if (!matches.length) return [];
+
+    return matches
+      .map((match, index) => {
+        const nextIndex = matches[index + 1]?.index ?? normalized.length;
+        const label = match[1];
+        const value = normalized.slice((match.index ?? 0) + match[0].length, nextIndex).trim();
+        return value ? { label, value } : null;
+      })
+      .filter((field): field is ParsedRoomField => Boolean(field));
+  }
+
+  function parseRoomFieldLine(line: string) {
+    const match = line.match(/^([^:：]{1,20})\s*[:：]\s*(.+)$/);
+    if (!match) return null;
+    return {
+      label: match[1].trim(),
+      value: match[2].trim()
+    };
+  }
+
   $effect(() => {
     if (!selectedDay && grouped.length) {
       selectedDay = grouped[0].date;
@@ -277,6 +391,7 @@
 
       <div class="trip-hero__actions">
         <a class="ghost" href="/">All trips</a>
+        <a class="ghost" href={`/trips/${trip.slug}/edit`}>Open editor</a>
         <button class="ghost ghost--strong" type="button">Export to Drive</button>
       </div>
     </div>
@@ -295,10 +410,7 @@
 
       <section class="timeline-day">
         <header class="timeline-day__header">
-          <div>
-            <p class="eyebrow">Day view</p>
-            <h2>{grouped.find((day) => day.date === selectedDay)?.label}</h2>
-          </div>
+          <h2>{grouped.find((day) => day.date === selectedDay)?.label}</h2>
           <div class="timeline-day__stats">
             <span>{dayItems(selectedDay).length} stops</span>
             <span>{trip.destination}</span>
@@ -322,9 +434,6 @@
                       <span>{transportLabel(item)}</span>
                       {#if transportCode(item)}<span>{transportCode(item)}</span>{/if}
                     </div>
-                    {#if item.amount}
-                      <strong>{formatMoney(item)}</strong>
-                    {/if}
                   </div>
 
                   <div class="timeline-transport__route">
@@ -353,20 +462,22 @@
                   <div class="timeline-item__chips">
                     <span>{item.category}</span>
                     {#if item.reservationStatus}<span class="chip-soft">{item.reservationStatus}</span>{/if}
+                    {#if isStay(item)}
+                      {#each mealTags(item) as meal}
+                        <span class="chip-meal">{meal}</span>
+                      {/each}
+                    {/if}
                   </div>
 
                   <div class="timeline-item__title">
-                    <div>
+                    <div class="timeline-item__title-copy">
                       <h3>{item.place.name}</h3>
                       {#if summaryLine(item)}
                         <p>{summaryLine(item)}</p>
                       {/if}
                     </div>
-                    {#if item.amount}
-                      <div class="timeline-item__amount">
-                        <strong>{formatMoney(item)}</strong>
-                        {#if item.paymentMethod}<small>{item.paymentMethod}</small>{/if}
-                      </div>
+                    {#if imageUrl(item)}
+                      <img class="timeline-item__thumb" src={imageUrl(item)} alt={item.place.name} loading="lazy" />
                     {/if}
                   </div>
 
@@ -374,7 +485,7 @@
                     {#each genericFacts(item) as fact}
                       <span>{fact}</span>
                     {/each}
-                    <span class="open">查看明細</span>
+                    <span class="open" aria-hidden="true">↗</span>
                   </div>
                 </div>
               </button>
@@ -384,88 +495,19 @@
       </section>
     </div>
 
-    <aside class="trip-shell__side">
-      <section class="editor card">
-        <div class="editor__head">
-          <div>
-            <p class="eyebrow">Place resolver</p>
-            <h2>新增地點草稿</h2>
-          </div>
-          <div class="editor__badge">Places → D1</div>
-        </div>
-
-        <form class="place-form" method="post" action="/api/places/resolve">
-          <label class="field field--primary">
-            <span>Google Maps 連結</span>
-            <input name="mapsUrl" placeholder="貼上 Google Maps 地點連結，先幫你解析 place 資訊" />
-          </label>
-
-          <div class="form-grid">
-            <label class="field">
-              <span>日期</span>
-              <input type="date" name="dayDate" value={selectedDay} />
-            </label>
-            <label class="field">
-              <span>開始時間</span>
-              <input type="time" name="startTime" />
-            </label>
-            <label class="field">
-              <span>類別</span>
-              <select name="category">
-                <option>食</option>
-                <option>交通</option>
-                <option>住宿</option>
-                <option>景點</option>
-                <option>買物</option>
-                <option>體驗</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>付款方式</span>
-              <select name="paymentMethod">
-                <option>刷卡</option>
-                <option>現金</option>
-                <option>交通卡</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="field">
-            <span>備註</span>
-            <textarea
-              name="notes"
-              rows="5"
-              placeholder={`交通建議 key:\n車次: KTX 014\n座位: 3A, 3B\n車廂: 5\n出發航廈: T2\n抵達航廈: 國際線`}
-            ></textarea>
-          </label>
-
-          <button class="submit" type="submit">解析地點並建立草稿</button>
-        </form>
-      </section>
-
-      <section class="insight card">
-        <p class="eyebrow">Data flow</p>
-        <h3>先把 viewer 做準，再接編輯與匯出。</h3>
-        <ul>
-          <li>交通優先讀取 `子類別`，沒有才回退文字判斷</li>
-          <li>火車 / 航班 / 計程車支援備註 key-value 補細節</li>
-          <li>Google Maps iframe 先依原始連結，否則退回地點查詢</li>
-        </ul>
-      </section>
-    </aside>
   </section>
 
   {#if selectedItem}
     <div class="detail-modal" role="presentation">
-      <button class="detail-modal__scrim" type="button" aria-label="Close details" onclick={() => (selectedItem = null)}></button>
+      <button class="detail-modal__scrim" type="button" aria-label="Close details" onclick={closeDetails}></button>
       <div
         class={`detail-sheet card tone-${categoryClass(selectedItem)}`}
         role="dialog"
         aria-modal="true"
         tabindex="-1"
-        onclick={(event) => event.stopPropagation()}
+        onkeydown={onDialogKeydown}
       >
-        <button class="detail-sheet__close" type="button" onclick={() => (selectedItem = null)}>×</button>
+        <button class="detail-sheet__close" type="button" onclick={closeDetails}>?</button>
 
         <div class="detail-sheet__header">
           <div class="timeline-item__chips">
@@ -473,6 +515,11 @@
             {#if isTransport(selectedItem)}<span>{transportLabel(selectedItem)}</span>{/if}
             {#if isTransport(selectedItem) && transportCode(selectedItem)}<span>{transportCode(selectedItem)}</span>{/if}
             {#if selectedItem.reservationStatus}<span class="chip-soft">{selectedItem.reservationStatus}</span>{/if}
+            {#if isStay(selectedItem)}
+              {#each mealTags(selectedItem) as meal}
+                <span class="chip-meal">{meal}</span>
+              {/each}
+            {/if}
           </div>
           <h2>{modalTitle(selectedItem)}</h2>
           {#if selectedItem.place.nativeName}<p>{selectedItem.place.nativeName}</p>{/if}
@@ -481,6 +528,12 @@
             {#if selectedItem.startTime}<span>{selectedItem.startTime}{selectedItem.endTime ? ` - ${selectedItem.endTime}` : ""}</span>{/if}
           </div>
         </div>
+
+        {#if imageUrl(selectedItem)}
+          <section class="detail-image">
+            <img src={imageUrl(selectedItem)} alt={selectedItem.place.name} loading="lazy" />
+          </section>
+        {/if}
 
         {#if isTransport(selectedItem) && transportMode(selectedItem) === "flight"}
           <section class="journey-ticket">
@@ -533,16 +586,33 @@
               {/each}
             </div>
           </section>
-        {:else if selectedItem.category === "住宿"}
+        {:else if isStay(selectedItem)}
           <section class="stay-grid">
-            <div>
+            <div class="stay-grid__checkin">
               <small>Check-in</small>
               <strong>{detailText(selectedItem, "checkIn") || selectedItem.startTime || "16:00"}</strong>
             </div>
-            <div>
+            <div class="stay-grid__checkout">
               <small>Check-out</small>
               <strong>{detailText(selectedItem, "checkOut") || "12:00"}</strong>
             </div>
+          </section>
+        {/if}
+
+        {#if roomFields(selectedItem).length}
+          <section class="room-tags">
+            {#each roomFields(selectedItem) as room}
+              <div class="room-tags__item">
+                <span>{room.label}</span>
+                <strong>
+                  {#if isUrl(room.value)}
+                    <a href={room.value} target="_blank" rel="noreferrer">{room.value}</a>
+                  {:else}
+                    {room.value}
+                  {/if}
+                </strong>
+              </div>
+            {/each}
           </section>
         {/if}
 
@@ -564,7 +634,7 @@
             <div class="order-panel__head">
               <div>
                 <small>明細</small>
-                <strong>品項內容</strong>
+                <strong>點餐 / 購物內容</strong>
               </div>
             </div>
 
@@ -627,12 +697,28 @@
 
 <style>
   .trip-shell { min-height: 100vh; }
-  .trip-hero { min-height: 340px; background-size: cover; background-position: center; color: white; }
+  .trip-hero {
+    position: relative;
+    overflow: hidden;
+    min-height: 360px;
+    background-size: cover;
+    background-position: center;
+    color: white;
+  }
+  .trip-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(9, 12, 18, 0.08), rgba(9, 12, 18, 0.18));
+    pointer-events: none;
+  }
   .trip-hero__copy {
+    position: relative;
+    z-index: 1;
     width: min(1120px, calc(100vw - 48px));
-    min-height: 340px;
+    min-height: 360px;
     margin: 0 auto;
-    padding: 30px 0 34px;
+    padding: 34px 0 38px;
     display: flex;
     justify-content: space-between;
     align-items: end;
@@ -641,11 +727,18 @@
   .trip-hero__meta h1 {
     margin: 0 0 12px;
     font-family: var(--font-display);
-    font-size: clamp(2.5rem, 4vw, 4.15rem);
+    font-size: clamp(2.65rem, 4vw, 4.35rem);
     font-weight: 700;
-    line-height: 0.96;
+    line-height: 0.98;
+    max-width: 8ch;
+    text-wrap: balance;
   }
-  .trip-hero__meta p:last-child { margin: 0; color: rgba(255,255,255,.8); font-size: 0.98rem; }
+  .trip-hero__meta p:last-child {
+    margin: 0;
+    color: rgba(255,255,255,.8);
+    font-size: 0.92rem;
+    letter-spacing: 0.01em;
+  }
   .trip-hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
   .ghost {
     border: 1px solid rgba(255,255,255,.18);
@@ -660,20 +753,17 @@
     width: min(1120px, calc(100vw - 48px));
     margin: 28px auto 56px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 330px;
-    gap: 28px;
-    align-items: start;
   }
   .trip-shell__main { display: grid; gap: 18px; }
   .day-tabs {
     position: sticky;
-    top: 0;
+    top: 10px;
     z-index: 5;
     display: flex;
     gap: 10px;
-    padding: 12px;
-    border-radius: 24px;
-    background: rgba(253,251,242,.8);
+    padding: 10px;
+    border-radius: 22px;
+    background: rgba(255,255,255,.96);
     border: 1px solid var(--border);
     backdrop-filter: blur(16px);
     box-shadow: 0 10px 28px rgba(17,24,39,.045);
@@ -690,23 +780,32 @@
   .day-tabs button.selected { background: #1d2433; color: white; box-shadow: 0 12px 24px rgba(29,36,51,.18); }
   .day-tabs small, .day-tabs strong { display: block; text-align: center; }
   .day-tabs small { font-size: 0.8rem; }
-  .day-tabs strong { font-size: 1.55rem; line-height: 1; }
-  .timeline-day { display: grid; gap: 18px; }
+  .day-tabs strong { font-size: 1.48rem; line-height: 1; }
+  .timeline-day {
+    display: grid;
+    gap: 18px;
+    padding: 20px 22px 24px;
+    border-radius: 30px;
+    background: #fff;
+    border: 1px solid rgba(20,31,49,.06);
+    box-shadow: 0 16px 40px rgba(17,24,39,.04);
+  }
   .timeline-day__header { display: flex; justify-content: space-between; gap: 18px; align-items: end; }
   .timeline-day__header h2 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(1.7rem, 2vw, 2.2rem);
+    font-size: clamp(1.55rem, 2vw, 2rem);
     font-weight: 700;
     line-height: 1;
   }
   .timeline-day__stats { display: flex; gap: 10px; flex-wrap: wrap; }
   .timeline-day__stats span {
-    padding: 9px 13px;
+    padding: 8px 12px;
     border-radius: 999px;
     background: rgba(255,255,255,.92);
     border: 1px solid var(--border);
     color: var(--muted);
+    font-size: 0.88rem;
   }
   .timeline-list { position: relative; display: grid; gap: 16px; }
   .timeline-list::before {
@@ -734,7 +833,7 @@
     overflow: hidden;
     transition: transform 180ms ease, box-shadow 180ms ease;
     border-radius: 28px;
-    background: rgba(255,255,255,.96);
+    background: #fff;
     border: 1px solid rgba(20,31,49,.06);
     box-shadow: 0 12px 34px rgba(17,24,39,.05);
   }
@@ -754,7 +853,7 @@
     background: var(--tone, var(--blue));
     box-shadow: 0 0 0 6px white;
   }
-  .timeline-item__summary { padding: 18px 20px 18px 0; }
+  .timeline-item__summary { padding: 20px 22px 18px 0; }
   .timeline-item__chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .timeline-item__chips span {
     padding: 6px 11px;
@@ -765,12 +864,19 @@
     font-weight: 700;
   }
   .timeline-item__chips .chip-soft { background: rgba(14,165,108,.1); color: #0d9c67; }
+  .timeline-item__chips .chip-meal { background: rgba(255, 175, 42, 0.14); color: #d97706; }
   .timeline-item__title { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
-  .timeline-item__title h3 { margin: 0 0 4px; font-size: 1.14rem; letter-spacing: 0; }
-  .timeline-item__title p { margin: 0; color: var(--muted); }
-  .timeline-item__amount { text-align: right; }
-  .timeline-item__amount strong { display: block; white-space: nowrap; font-size: 1.05rem; }
-  .timeline-item__amount small { color: var(--muted); }
+  .timeline-item__title-copy { min-width: 0; flex: 1 1 auto; }
+  .timeline-item__title h3 { margin: 0 0 5px; font-size: 1.12rem; letter-spacing: 0; }
+  .timeline-item__title p { margin: 0; color: var(--muted); line-height: 1.45; }
+  .timeline-item__thumb {
+    width: 112px;
+    height: 92px;
+    flex: 0 0 112px;
+    object-fit: cover;
+    border-radius: 18px;
+    box-shadow: 0 10px 20px rgba(17,24,39,.08);
+  }
   .timeline-item__footer {
     display: flex;
     justify-content: space-between;
@@ -781,15 +887,27 @@
     border-top: 1px solid rgba(20,31,49,.08);
     color: var(--muted);
   }
-  .timeline-item__footer .open { color: var(--ink); font-weight: 700; margin-left: auto; }
+  .timeline-item__footer .open {
+    color: var(--ink);
+    font-weight: 700;
+    margin-left: auto;
+    width: 28px;
+    height: 28px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(20,31,49,.04);
+  }
   .timeline-transport {
     align-items: center;
     padding: 2px 0;
   }
   .timeline-transport__body {
-    padding: 14px 0 14px;
+    padding: 16px 0 16px;
     border-bottom: 1px solid rgba(20,31,49,.08);
+    transition: transform 160ms ease;
   }
+  .timeline-transport:hover .timeline-transport__body { transform: translateX(2px); }
   .timeline-transport__head {
     display: flex;
     justify-content: space-between;
@@ -802,7 +920,7 @@
     grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 10px;
     font-weight: 700;
     font-size: 1.02rem;
   }
@@ -826,7 +944,7 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 10px;
+    margin-top: 12px;
     color: var(--muted);
     font-size: 0.92rem;
   }
@@ -856,8 +974,10 @@
     width: min(920px, calc(100vw - 24px));
     max-height: calc(100vh - 24px);
     overflow: auto;
-    padding: 24px;
-    background: rgba(255,255,255,.975);
+    padding: 28px;
+    background: #fff;
+    border-radius: 30px;
+    box-shadow: 0 32px 70px rgba(14, 19, 28, 0.2);
   }
   .detail-sheet__close {
     position: absolute;
@@ -874,8 +994,10 @@
   .detail-sheet__header h2 {
     margin: 8px 0 6px;
     font-family: var(--font-display);
-    font-size: clamp(2rem, 3vw, 2.6rem);
+    font-size: clamp(1.85rem, 3vw, 2.35rem);
     line-height: 0.98;
+    max-width: min(18ch, calc(100% - 56px));
+    text-wrap: balance;
   }
   .detail-sheet__header p { margin: 0; color: var(--muted); }
   .detail-sheet__meta { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; color: var(--muted); }
@@ -946,8 +1068,8 @@
   .journey-panel {
     padding: 20px;
     border-radius: 24px;
-    background: linear-gradient(180deg, rgba(49,107,255,.07), rgba(49,107,255,.02));
-    border: 1px solid rgba(49,107,255,.08);
+    background: linear-gradient(180deg, rgba(49,107,255,.06), rgba(49,107,255,.015));
+    border: 1px solid rgba(49,107,255,.1);
   }
   .journey-panel__route {
     display: grid;
@@ -988,6 +1110,57 @@
     gap: 14px;
   }
   .stay-grid strong { display: block; margin-top: 8px; font-size: 2rem; }
+  .stay-grid__checkin {
+    background: linear-gradient(180deg, rgba(255, 188, 92, 0.28), rgba(255, 188, 92, 0.12)) !important;
+    border-color: rgba(255, 175, 42, 0.18) !important;
+  }
+  .stay-grid__checkout {
+    background: linear-gradient(180deg, rgba(29, 36, 51, 0.08), rgba(29, 36, 51, 0.03)) !important;
+    border-color: rgba(29, 36, 51, 0.08) !important;
+  }
+  .room-tags {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .room-tags__item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: start;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 175, 42, 0.08);
+    border: 1px solid rgba(255, 175, 42, 0.14);
+  }
+  .room-tags__item span {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.72);
+    color: #d97706;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .room-tags__item strong {
+    font-size: 0.98rem;
+    line-height: 1.4;
+    flex: 1 1 260px;
+  }
+  .room-tags__item a {
+    color: #316bff;
+    word-break: break-word;
+  }
+  .detail-image {
+    margin-top: 24px;
+  }
+  .detail-image img {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: 24px;
+    display: block;
+    background: rgba(20,31,49,.04);
+  }
   .detail-sheet__grid {
     margin-top: 24px;
     display: grid;
@@ -999,7 +1172,7 @@
     gap: 8px;
     padding: 16px;
     border-radius: 18px;
-    background: rgba(20,31,49,.03);
+    background: linear-gradient(180deg, rgba(20,31,49,.025), rgba(20,31,49,.04));
   }
   .detail-sheet__grid small { color: var(--muted); font-size: .78rem; text-transform: uppercase; font-weight: 700; }
   .detail-sheet__grid strong { font-size: 1rem; line-height: 1.55; }
@@ -1020,7 +1193,7 @@
     border-radius: 20px;
     overflow: hidden;
     border: 1px solid rgba(20,31,49,.08);
-    background: rgba(255,255,255,.86);
+    background: rgba(255,255,255,.9);
   }
   .order-table__row {
     display: grid;
@@ -1080,62 +1253,6 @@
   }
   .detail-sheet__amount span { color: var(--muted); }
   .detail-sheet__amount strong { font-size: 2rem; line-height: 1; }
-  .trip-shell__side { position: sticky; top: 18px; display: grid; gap: 18px; }
-  .editor,
-  .insight {
-    padding: 22px;
-    background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,255,255,.93));
-  }
-  .editor__head { display: flex; justify-content: space-between; gap: 12px; align-items: start; margin-bottom: 18px; }
-  .editor__head h2,
-  .insight h3 { margin: 0; }
-  .editor__badge {
-    padding: 10px 12px;
-    border-radius: 999px;
-    background: rgba(230,80,79,.08);
-    color: var(--accent);
-    font-size: .85rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .place-form { display: grid; gap: 14px; }
-  .field { display: grid; gap: 8px; }
-  .field span { color: var(--muted); font-size: .92rem; font-weight: 600; }
-  .field input,
-  .field textarea,
-  .field select {
-    width: 100%;
-    padding: 14px 15px;
-    border-radius: 18px;
-    border: 1px solid var(--border);
-    background: white;
-    transition: border-color 160ms ease, box-shadow 160ms ease;
-  }
-  .field input:focus,
-  .field textarea:focus,
-  .field select:focus {
-    outline: none;
-    border-color: rgba(49,107,255,.38);
-    box-shadow: 0 0 0 4px rgba(49,107,255,.08);
-  }
-  .field--primary input { min-height: 56px; }
-  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .submit {
-    border: 0;
-    border-radius: 18px;
-    padding: 15px 16px;
-    background: linear-gradient(135deg, #212836 0%, #313a4e 100%);
-    color: white;
-    font-weight: 800;
-    box-shadow: 0 16px 32px rgba(21,30,48,.18);
-  }
-  .insight h3 {
-    margin-bottom: 14px;
-    font-family: var(--font-display);
-    font-size: 1.55rem;
-    line-height: 1.08;
-  }
-  .insight ul { margin: 0; padding-left: 18px; color: var(--muted); }
   .tone-transport { --tone: #316bff; }
   .tone-stay { --tone: #ffaf2a; }
   .tone-food { --tone: #ff5679; }
@@ -1144,8 +1261,7 @@
   .tone-experience,
   .tone-seasonal { --tone: #7f6cff; }
   @media (max-width: 1080px) {
-    .trip-shell__content { grid-template-columns: 1fr; }
-    .trip-shell__side { position: static; }
+    .trip-shell__content { width: min(100vw - 20px, 1120px); }
   }
   @media (max-width: 780px) {
     .trip-hero__copy,
@@ -1166,6 +1282,8 @@
     .timeline-item__dot::before { left: 9px; top: -10px; }
     .timeline-item__summary,
     .timeline-transport__body { padding: 0 20px 18px; }
+    .timeline-item__title { display: grid; }
+    .timeline-item__thumb { width: 100%; height: 190px; flex-basis: auto; }
     .timeline-transport__route,
     .journey-ticket__route,
     .journey-panel__route,
@@ -1178,3 +1296,5 @@
     .order-table__row span:nth-last-child(2) { text-align: left; }
   }
 </style>
+
+

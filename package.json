@@ -4,11 +4,21 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "clean:cf": "powershell -Command \"if (Test-Path '.svelte-kit\\\\cloudflare') { Remove-Item -LiteralPath '.svelte-kit\\\\cloudflare' -Recurse -Force }\"",
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "npm run clean:cf && vite build",
     "preview": "vite preview",
+    "deploy": "npm run clean:cf && wrangler deploy",
     "check": "svelte-kit sync && tsc --noEmit",
-    "db:apply": "wrangler d1 execute pocket_trips --file=db/schema.sql"
+    "db:apply": "wrangler d1 execute pocket_trips --file=db/schema.sql",
+    "db:apply:local": "wrangler d1 execute pocket_trips --local --file=db/schema.sql",
+    "db:apply:remote": "wrangler d1 execute pocket_trips --remote --file=db/schema.sql",
+    "db:tables:local": "wrangler d1 execute pocket_trips --local --command \"select name from sqlite_master where type='table' order by name;\"",
+    "db:tables:remote": "wrangler d1 execute pocket_trips --remote --command \"select name from sqlite_master where type='table' order by name;\"",
+    "db:import": "node scripts/import-csv-to-d1.mjs",
+    "db:import:local": "node scripts/import-csv-to-d1.mjs 2026korea --local",
+    "db:import:remote": "node scripts/import-csv-to-d1.mjs 2026korea --remote",
+    "db:print-sql": "node scripts/import-csv-to-d1.mjs 2026korea --print-sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250410.0",

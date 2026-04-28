@@ -3,10 +3,10 @@ export type TripCategory =
   | "住宿"
   | "食"
   | "景點"
-  | "買物"
+  | "購物"
   | "體驗"
+  | "季節"
   | "櫻花"
-  | "紅葉"
   | "其他";
 
 export interface PlaceDraft {

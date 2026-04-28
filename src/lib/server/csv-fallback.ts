@@ -1,9 +1,5 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { PlaceDraft, TripDetail, TripItemDraft, TripSummary } from "$lib/types";
-
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+import korea2026Csv from "../../../data/2026korea.csv?raw";
 
 const fallbackTripMeta: Record<string, Omit<TripSummary, "id" | "slug">> = {
   "2026korea": {
@@ -29,8 +25,8 @@ export async function getTripFromCsv(slug: string): Promise<TripDetail | null> {
   const meta = fallbackTripMeta[slug];
   if (!meta) return null;
 
-  const csvPath = path.join(rootDir, "data", `${slug}.csv`);
-  const text = await fs.readFile(csvPath, "utf8");
+  const text = csvTextBySlug[slug];
+  if (!text) return null;
   const rows = parseCsv(text);
   const items = rows
     .filter((row) => !["大圖", "天氣", "info"].includes(categoryOf(row)))
@@ -44,6 +40,10 @@ export async function getTripFromCsv(slug: string): Promise<TripDetail | null> {
     items
   };
 }
+
+const csvTextBySlug: Record<string, string> = {
+  "2026korea": korea2026Csv
+};
 
 function rowToItem(row: Record<string, string>, slug: string, index: number): TripItemDraft {
   const amount = parseMoney(row["花費"]);
@@ -83,9 +83,14 @@ function toDetailJson(row: Record<string, string>, notes?: string) {
   const category = categoryOf(row);
   const detail: Record<string, unknown> = {};
   const orderItems = parseLineItems(row["說明"]);
+  const imageUrl = firstNonEmptyField(row, ["圖片", "image", "Image", "photo", "封面圖", "照片"]);
 
   if (row["說明"]) {
     detail.description = row["說明"];
+  }
+
+  if (imageUrl) {
+    detail.imageUrl = imageUrl;
   }
 
   if (orderItems.length) {
@@ -202,6 +207,10 @@ function firstLine(value?: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
+}
+
+function firstNonEmptyField(row: Record<string, string>, keys: string[]) {
+  return keys.map((key) => row[key]?.trim()).find(Boolean);
 }
 
 function extractRoomField(block: string | undefined, label: string) {
