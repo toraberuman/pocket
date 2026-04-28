@@ -6,9 +6,9 @@
   "scripts": {
     "clean:cf": "node -e \"const fs=require('fs'); fs.rmSync('.svelte-kit/cloudflare',{recursive:true,force:true});\"",
     "dev": "vite dev",
-    "build": "npm run clean:cf && vite build",
+    "build": "npm run clean:cf && svelte-kit sync && vite build",
     "preview": "vite preview",
-    "deploy": "npm run clean:cf && wrangler deploy",
+    "deploy": "npm run clean:cf && svelte-kit sync && wrangler deploy",
     "check": "svelte-kit sync && tsc --noEmit",
     "db:apply": "wrangler d1 execute pocket_trips --file=db/schema.sql",
     "db:apply:local": "wrangler d1 execute pocket_trips --local --file=db/schema.sql",

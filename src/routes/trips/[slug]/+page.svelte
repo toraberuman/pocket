@@ -179,13 +179,13 @@
   function routeStartDetail(item: TripItemDraft) {
     const name = detailText(item, "fromName");
     const terminal = detailText(item, "fromTerminal");
-    return [name, terminal].filter(Boolean).join(" 繚 ");
+    return [name, terminal].filter(Boolean).join(" · ");
   }
 
   function routeEndDetail(item: TripItemDraft) {
     const name = detailText(item, "toName");
     const terminal = detailText(item, "toTerminal");
-    return [name, terminal].filter(Boolean).join(" 繚 ");
+    return [name, terminal].filter(Boolean).join(" · ");
   }
 
   function transportMetaLine(item: TripItemDraft) {
@@ -198,13 +198,13 @@
       detailNumber(item, "distanceKm") ? `${detailNumber(item, "distanceKm")} km` : undefined
     ].filter(Boolean);
 
-    return bits.join(" 繚 ");
+    return bits.join(" · ");
   }
 
   function transportRouteText(item: TripItemDraft) {
     const start = routeStart(item);
     const end = routeEnd(item);
-    if (start && end) return `${start} ??${end}`;
+    if (start && end) return `${start} → ${end}`;
     return detailText(item, "routeText") || item.place.nativeName || item.place.name;
   }
 
@@ -507,7 +507,7 @@
         tabindex="-1"
         onkeydown={onDialogKeydown}
       >
-        <button class="detail-sheet__close" type="button" onclick={closeDetails}>?</button>
+        <button class="detail-sheet__close" type="button" onclick={closeDetails} aria-label="Close details">×</button>
 
         <div class="detail-sheet__header">
           <div class="timeline-item__chips">
@@ -729,9 +729,10 @@
     font-family: var(--font-display);
     font-size: clamp(2.65rem, 4vw, 4.35rem);
     font-weight: 700;
-    line-height: 0.98;
-    max-width: 8ch;
-    text-wrap: balance;
+    line-height: 1.02;
+    max-width: min(12ch, 100%);
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
   }
   .trip-hero__meta p:last-child {
     margin: 0;
