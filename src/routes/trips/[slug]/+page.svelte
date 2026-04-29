@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import type { PageData } from "./$types";
+  import type { PageData, ActionData } from "./$types";
   import { groupByDay } from "$lib/utils";
   import type { TripItemDraft } from "$lib/types";
 
@@ -17,7 +17,7 @@
     value: string;
   };
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
   const trip = $derived(data.trip);
   const grouped = $derived(groupByDay(trip.items));
   let selectedDay = $state("");
@@ -376,6 +376,20 @@
 </svelte:head>
 
 <main class="trip-shell">
+  {#if data.locked}
+    <section class="shell trip-lock-screen">
+      <div class="card trip-lock-card">
+        <p class="eyebrow">Protected trip</p>
+        <h1>{trip.title}</h1>
+        <p>Enter the trip password to view this itinerary.</p>
+        {#if form?.message}<p class="trip-lock-message">{form.message}</p>{/if}
+        <form method="post" class="trip-lock-form">
+          <input type="password" name="password" placeholder="Trip password" required />
+          <button type="submit" formaction="?/unlock">Unlock trip</button>
+        </form>
+      </div>
+    </section>
+  {:else}
   <section
     class="trip-hero"
     style={`background-image:
@@ -693,10 +707,50 @@
       </div>
     </div>
   {/if}
+  {/if}
 </main>
 
 <style>
   .trip-shell { min-height: 100vh; }
+  .trip-lock-screen {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 32px 0;
+  }
+  .trip-lock-card {
+    width: min(560px, 100%);
+    padding: 28px;
+    background: #fff;
+  }
+  .trip-lock-card h1 {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1;
+  }
+  .trip-lock-message {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .trip-lock-form {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .trip-lock-form input {
+    flex: 1 1 auto;
+    padding: 14px 15px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+  }
+  .trip-lock-form button {
+    padding: 12px 16px;
+    border-radius: 999px;
+    border: 0;
+    background: #1d2433;
+    color: white;
+  }
   .trip-hero {
     position: relative;
     overflow: hidden;

@@ -6,6 +6,9 @@
   "scripts": {
     "clean:cf": "node -e \"const fs=require('fs'); fs.rmSync('.svelte-kit/cloudflare',{recursive:true,force:true});\"",
     "dev": "vite dev",
+    "dev:d1:setup": "npm run db:apply:local && npm run db:import:local",
+    "dev:d1": "npm run build && wrangler dev --local",
+    "dev:d1:remote": "npm run build && wrangler dev --remote",
     "build": "npm run clean:cf && svelte-kit sync && vite build",
     "preview": "vite preview",
     "deploy": "npm run clean:cf && svelte-kit sync && wrangler deploy",
@@ -13,6 +16,8 @@
     "db:apply": "wrangler d1 execute pocket_trips --file=db/schema.sql",
     "db:apply:local": "wrangler d1 execute pocket_trips --local --file=db/schema.sql",
     "db:apply:remote": "wrangler d1 execute pocket_trips --remote --file=db/schema.sql",
+    "db:migrate:trip-access:local": "wrangler d1 execute pocket_trips --local --file=db/migrations/2026-04-28-trip-access.sql",
+    "db:migrate:trip-access:remote": "wrangler d1 execute pocket_trips --remote --file=db/migrations/2026-04-28-trip-access.sql",
     "db:tables:local": "wrangler d1 execute pocket_trips --local --command \"select name from sqlite_master where type='table' order by name;\"",
     "db:tables:remote": "wrangler d1 execute pocket_trips --remote --command \"select name from sqlite_master where type='table' order by name;\"",
     "db:import": "node scripts/import-csv-to-d1.mjs",
@@ -27,7 +32,8 @@
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "svelte": "^5.0.0",
     "typescript": "^5.6.0",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "wrangler": "^4.85.0"
   },
   "dependencies": {
     "csv-stringify": "^6.5.2",

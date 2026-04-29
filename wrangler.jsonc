@@ -14,7 +14,8 @@
     {
       "binding": "DB",
       "database_name": "pocket_trips",
-      "database_id": "cdcdb9e3-c8aa-4d5b-9ed1-97b4dbb11939"
+      "database_id": "cdcdb9e3-c8aa-4d5b-9ed1-97b4dbb11939",
+      "preview_database_id": "DB"
     }
   ]
 }

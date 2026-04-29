@@ -1,5 +1,6 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { getTripBySlug, saveTripItemBySlug } from "$lib/server/db";
+import { getTripAccessBySlug, getTripBySlug, saveTripItemBySlug } from "$lib/server/db";
+import { hasTripAccess, isAdmin, setTripAccess, verifyPassword } from "$lib/server/auth";
 
 function normalizeNumber(value: FormDataEntryValue | null) {
   const text = String(value || "").trim();
@@ -25,24 +26,73 @@ function parseDetailJson(value: FormDataEntryValue | null) {
   }
 }
 
-export async function load({ params, platform, url }) {
-  const trip = await getTripBySlug(params.slug, platform?.env);
-  if (!trip) {
+export async function load({ params, platform, url, cookies }) {
+  const access = await getTripAccessBySlug(params.slug, platform?.env);
+  if (!access) {
     throw error(404, "Trip not found");
   }
+
+  const admin = await isAdmin(cookies, platform?.env);
+  const unlocked = admin || !access.editPasswordHash || hasTripAccess(cookies, params.slug, "edit");
+
+  if (!unlocked) {
+    return {
+      trip: {
+        ...access,
+        notes: [],
+        items: []
+      },
+      selectedDay: "",
+      selectedItemId: "",
+      selectedItem: null,
+      locked: true
+    };
+  }
+
+  const trip = await getTripBySlug(params.slug, platform?.env);
+  if (!trip) throw error(404, "Trip not found");
 
   const selectedDay = url.searchParams.get("day") || trip.items[0]?.dayDate || "";
   const selectedItemId = url.searchParams.get("item") || "";
   const selectedItem = trip.items.find((item) => item.id === selectedItemId) || null;
 
-  return { trip, selectedDay, selectedItemId, selectedItem };
+  return { trip, selectedDay, selectedItemId, selectedItem, locked: false };
 }
 
 export const actions = {
-  save: async ({ request, params, platform }) => {
+  unlock: async ({ request, params, platform, cookies }) => {
+    const access = await getTripAccessBySlug(params.slug, platform?.env);
+    if (!access) throw error(404, "Trip not found");
+
+    if (await isAdmin(cookies, platform?.env)) {
+      throw redirect(303, `/trips/${params.slug}/edit`);
+    }
+
+    const password = String((await request.formData()).get("password") || "");
+    if (!(await verifyPassword(password, access.editPasswordHash))) {
+      return fail(401, { message: "Incorrect edit password." });
+    }
+
+    setTripAccess(cookies, params.slug, "edit");
+    throw redirect(303, `/trips/${params.slug}/edit`);
+  },
+  save: async ({ request, params, platform, cookies }) => {
     if (!platform?.env?.DB) {
       return fail(503, {
         message: "This editor needs a D1 binding. Use the deployed app or a Wrangler-backed local environment."
+      });
+    }
+
+    const access = await getTripAccessBySlug(params.slug, platform?.env);
+    if (!access) {
+      throw error(404, "Trip not found");
+    }
+
+    const admin = await isAdmin(cookies, platform?.env);
+    const unlocked = admin || !access.editPasswordHash || hasTripAccess(cookies, params.slug, "edit");
+    if (!unlocked) {
+      return fail(403, {
+        message: "Edit access is locked for this trip."
       });
     }
 

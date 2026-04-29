@@ -7,6 +7,9 @@ create table if not exists trips (
   end_date text not null,
   traveler_count integer not null default 1,
   cover_image_url text,
+  is_private integer not null default 0,
+  view_password_hash text,
+  edit_password_hash text,
   notes_json text not null default '[]',
   created_at text not null default current_timestamp,
   updated_at text not null default current_timestamp

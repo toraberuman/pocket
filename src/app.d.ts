@@ -1,6 +1,7 @@
 declare global {
   interface Env {
     DB: D1Database;
+    ADMIN_PASSWORD?: string;
     MAPS_API_KEY?: string;
     GOOGLE_CLIENT_EMAIL?: string;
     GOOGLE_PRIVATE_KEY?: string;

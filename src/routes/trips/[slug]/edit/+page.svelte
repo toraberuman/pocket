@@ -18,6 +18,18 @@
 </svelte:head>
 
 <main class="editor-shell">
+  {#if data.locked}
+    <section class="card lock-card">
+      <p class="eyebrow">Protected editor</p>
+      <h1>{trip.title}</h1>
+      <p>Enter the edit password to manage this trip.</p>
+      {#if form?.message}<p class="editor-message">{form.message}</p>{/if}
+      <form method="post" class="lock-form">
+        <input type="password" name="password" placeholder="Edit password" required />
+        <button type="submit" formaction="?/unlock">Unlock editor</button>
+      </form>
+    </section>
+  {:else}
   <header class="editor-hero">
     <div>
       <p class="eyebrow">Editor mode</p>
@@ -195,6 +207,7 @@
       </section>
     </aside>
   </section>
+  {/if}
 </main>
 
 <style>
@@ -206,6 +219,29 @@
   .editor-grid {
     width: min(1120px, calc(100vw - 32px));
     margin: 0 auto;
+  }
+  .lock-card {
+    width: min(560px, 100%);
+    margin: 0 auto;
+    padding: 28px;
+    background: #fff;
+  }
+  .lock-card h1 {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1;
+  }
+  .lock-form {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .lock-form input {
+    flex: 1 1 auto;
+    padding: 14px 15px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
   }
   .editor-hero {
     display: flex;

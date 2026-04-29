@@ -49,6 +49,7 @@ export interface TripSummary {
   endDate: string;
   travelerCount: number;
   coverImageUrl?: string;
+  isPrivate?: boolean;
 }
 
 export interface TripDetail extends TripSummary {

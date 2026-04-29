@@ -1,5 +1,6 @@
 import { getTripFromCsv, listTripsFromCsv } from "$lib/server/csv-fallback";
 import type { TripDetail, TripSummary } from "$lib/types";
+import { hashPassword } from "$lib/server/auth";
 
 export type SaveTripItemInput = {
   itemId?: string;
@@ -30,6 +31,24 @@ export type SaveTripItemInput = {
   detailJson?: Record<string, unknown>;
 };
 
+export type CreateTripInput = {
+  slug: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  travelerCount: number;
+  coverImageUrl?: string;
+  isPrivate?: boolean;
+  viewPassword?: string;
+  editPassword?: string;
+};
+
+export type TripAccess = TripSummary & {
+  viewPasswordHash?: string | null;
+  editPasswordHash?: string | null;
+};
+
 export async function listTrips(env?: Env): Promise<TripSummary[]> {
   if (!env?.DB) {
     return listTripsFromCsv();
@@ -38,7 +57,7 @@ export async function listTrips(env?: Env): Promise<TripSummary[]> {
   try {
     const result = await env.DB.prepare(
       `select id, slug, title, destination, start_date as startDate, end_date as endDate,
-              traveler_count as travelerCount, cover_image_url as coverImageUrl
+              traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate
          from trips
         order by start_date desc`
     ).all<TripSummary>();
@@ -57,7 +76,7 @@ export async function getTripBySlug(slug: string, env?: Env): Promise<TripDetail
   try {
     const trip = await env.DB.prepare(
       `select id, slug, title, destination, start_date as startDate, end_date as endDate,
-              traveler_count as travelerCount, cover_image_url as coverImageUrl, notes_json
+              traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate, notes_json
          from trips
         where slug = ?1
         limit 1`
@@ -134,10 +153,75 @@ export async function getTripBySlug(slug: string, env?: Env): Promise<TripDetail
       }))
     };
 
-    return hydrated.items.length ? hydrated : getTripFromCsv(slug);
+    return hydrated;
   } catch {
     return getTripFromCsv(slug);
   }
+}
+
+export async function getTripAccessBySlug(slug: string, env?: Env): Promise<TripAccess | null> {
+  if (!env?.DB) {
+    const trip = await getTripFromCsv(slug);
+    return trip
+      ? {
+          id: trip.id,
+          slug: trip.slug,
+          title: trip.title,
+          destination: trip.destination,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          travelerCount: trip.travelerCount,
+          coverImageUrl: trip.coverImageUrl,
+          isPrivate: false
+        }
+      : null;
+  }
+
+  const trip = await env.DB.prepare(
+    `select id, slug, title, destination, start_date as startDate, end_date as endDate,
+            traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate,
+            view_password_hash as viewPasswordHash, edit_password_hash as editPasswordHash
+       from trips
+      where slug = ?1
+      limit 1`
+  )
+    .bind(slug)
+    .first<TripAccess>();
+
+  return trip || null;
+}
+
+export async function createTrip(input: CreateTripInput, env?: Env) {
+  if (!env?.DB) {
+    throw new Error("D1 binding is not available in this environment.");
+  }
+
+  const id = `trip:${input.slug}`;
+  const viewPasswordHash = input.viewPassword ? await hashPassword(input.viewPassword) : null;
+  const editPasswordHash = input.editPassword ? await hashPassword(input.editPassword) : null;
+
+  await env.DB.prepare(
+    `insert into trips (
+       id, slug, title, destination, start_date, end_date, traveler_count, cover_image_url,
+       is_private, view_password_hash, edit_password_hash, notes_json, updated_at
+     ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, '[]', current_timestamp)`
+  )
+    .bind(
+      id,
+      input.slug,
+      input.title,
+      input.destination,
+      input.startDate,
+      input.endDate,
+      input.travelerCount,
+      input.coverImageUrl || null,
+      input.isPrivate ? 1 : 0,
+      viewPasswordHash,
+      editPasswordHash
+    )
+    .run();
+
+  return { id, slug: input.slug };
 }
 
 export async function saveTripItemBySlug(slug: string, input: SaveTripItemInput, env?: Env) {

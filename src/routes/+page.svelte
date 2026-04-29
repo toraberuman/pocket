@@ -12,17 +12,28 @@
   <section class="home-hero">
     <div class="home-hero__copy">
       <p class="eyebrow">Pocket Trips</p>
-      <h1>把旅遊行程變成真的 app，不只是 CSV 的包裝頁。</h1>
+      <h1>Travel plans, but actually usable.</h1>
       <p>
-        這個版本先專注把現有行程資料完整展示在新 app 裡，確認欄位、時間軸、分類摘要都正確，
-        再接著做新增、刪除、編輯與 Google Drive 匯出。
+        A trip viewer and editor built for real itineraries. Use preview mode for travelers, and switch into
+        admin mode when you need to create trips, manage passwords, and update D1-backed data.
       </p>
     </div>
+
     <div class="home-hero__panel card">
       <span>Stack</span>
       <strong>SvelteKit + TypeScript</strong>
       <strong>Cloudflare Workers + D1</strong>
-      <strong>Places resolve + Drive export</strong>
+      <strong>Places resolve + trip access control</strong>
+      {#if data.isAdmin}
+        <div class="hero-actions">
+          <a class="hero-action" href="/admin/trips/new">Create new trip</a>
+          <form method="POST" action="/admin/logout">
+            <button class="hero-action hero-action--secondary" type="submit">Log out</button>
+          </form>
+        </div>
+      {:else}
+        <a class="hero-action" href="/admin/login">Admin login</a>
+      {/if}
     </div>
   </section>
 
@@ -39,19 +50,24 @@
           </div>
         </div>
         <div class="trip-card__body">
-          <h2>{trip.title}</h2>
-          <p>{trip.travelerCount} 人旅程 · itinerary viewer</p>
+          <div class="trip-card__title">
+            <h2>{trip.title}</h2>
+            {#if trip.isPrivate}<span class="trip-lock">Private</span>{/if}
+          </div>
+          <p>{trip.travelerCount} people</p>
         </div>
       </a>
     {/each}
 
-    <article class="trip-card trip-card--new card">
-      <div class="trip-card__body">
-        <p class="eyebrow">Next step</p>
-        <h2>下一階段會加入新建旅程</h2>
-        <p>先把 viewer 校對完成，再補 create wizard、表單儲存與 CSV export flow。</p>
-      </div>
-    </article>
+    {#if data.isAdmin}
+      <a class="trip-card trip-card--new card" href="/admin/trips/new">
+        <div class="trip-card__body">
+          <p class="eyebrow">Admin mode</p>
+          <h2>Create a new trip</h2>
+          <p>Set title, slug, dates, cover image, and separate view/edit passwords.</p>
+        </div>
+      </a>
+    {/if}
   </section>
 </main>
 
@@ -71,8 +87,10 @@
   .home-hero__copy h1 {
     margin: 0 0 14px;
     font-size: clamp(2.9rem, 6vw, 5.2rem);
-    line-height: 0.92;
+    line-height: 0.96;
     letter-spacing: 0;
+    max-width: 10ch;
+    text-wrap: pretty;
   }
 
   .home-hero__copy p:last-child {
@@ -86,9 +104,7 @@
     display: grid;
     gap: 10px;
     padding: 22px;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,255,255,.82)),
-      radial-gradient(circle at top right, rgba(49, 107, 255, 0.12), transparent 34%);
+    background: #fff;
   }
 
   .home-hero__panel span {
@@ -101,6 +117,41 @@
   .home-hero__panel strong {
     font-size: 1.1rem;
     line-height: 1.3;
+  }
+
+  .hero-actions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .hero-actions :global(form) {
+    margin: 0;
+  }
+
+  .hero-action {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 12px 16px;
+    border-radius: 999px;
+    background: #1d2433;
+    color: white;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .hero-actions .hero-action {
+    margin-top: 0;
+  }
+
+  .hero-action--secondary {
+    background: #eef1f5;
+    color: #1d2433;
   }
 
   .eyebrow {
@@ -153,6 +204,13 @@
     padding: 18px;
   }
 
+  .trip-card__title {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+  }
+
   .trip-card__body h2 {
     margin: 0 0 6px;
     font-size: 1.3rem;
@@ -163,14 +221,21 @@
     color: var(--muted);
   }
 
+  .trip-lock {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(20, 31, 49, 0.06);
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
   .trip-card--new {
     min-height: 360px;
     display: grid;
     align-items: end;
     border-style: dashed;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.76)),
-      radial-gradient(circle at top left, rgba(255, 175, 42, 0.15), transparent 30%);
+    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.88));
   }
 
   @media (max-width: 920px) {
