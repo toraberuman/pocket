@@ -44,6 +44,18 @@ export type CreateTripInput = {
   editPassword?: string;
 };
 
+export type UpdateTripInput = {
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  travelerCount: number;
+  coverImageUrl?: string;
+  isPrivate?: boolean;
+  viewPassword?: string;
+  editPassword?: string;
+};
+
 export type TripAccess = TripSummary & {
   viewPasswordHash?: string | null;
   editPasswordHash?: string | null;
@@ -222,6 +234,63 @@ export async function createTrip(input: CreateTripInput, env?: Env) {
     .run();
 
   return { id, slug: input.slug };
+}
+
+export async function updateTripBySlug(slug: string, input: UpdateTripInput, env?: Env) {
+  if (!env?.DB) {
+    throw new Error("D1 binding is not available in this environment.");
+  }
+
+  const trip = await env.DB.prepare("select id from trips where slug = ?1 limit 1").bind(slug).first<{ id: string }>();
+  if (!trip?.id) {
+    throw new Error(`Trip ${slug} was not found.`);
+  }
+
+  const current = await env.DB.prepare(
+    `select view_password_hash as viewPasswordHash, edit_password_hash as editPasswordHash
+       from trips
+      where id = ?1
+      limit 1`
+  )
+    .bind(trip.id)
+    .first<{ viewPasswordHash?: string | null; editPasswordHash?: string | null }>();
+
+  const viewPasswordHash =
+    input.viewPassword && input.viewPassword.trim()
+      ? await hashPassword(input.viewPassword)
+      : (current?.viewPasswordHash ?? null);
+  const editPasswordHash =
+    input.editPassword && input.editPassword.trim()
+      ? await hashPassword(input.editPassword)
+      : (current?.editPasswordHash ?? null);
+
+  await env.DB.prepare(
+    `update trips
+        set title = ?2,
+            destination = ?3,
+            start_date = ?4,
+            end_date = ?5,
+            traveler_count = ?6,
+            cover_image_url = ?7,
+            is_private = ?8,
+            view_password_hash = ?9,
+            edit_password_hash = ?10,
+            updated_at = current_timestamp
+      where slug = ?1`
+  )
+    .bind(
+      slug,
+      input.title,
+      input.destination,
+      input.startDate,
+      input.endDate,
+      input.travelerCount,
+      input.coverImageUrl || null,
+      input.isPrivate ? 1 : 0,
+      viewPasswordHash,
+      editPasswordHash
+    )
+    .run();
 }
 
 export async function saveTripItemBySlug(slug: string, input: SaveTripItemInput, env?: Env) {

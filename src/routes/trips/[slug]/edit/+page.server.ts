@@ -1,5 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { getTripAccessBySlug, getTripBySlug, saveTripItemBySlug } from "$lib/server/db";
+import { getTripAccessBySlug, getTripBySlug, saveTripItemBySlug, updateTripBySlug } from "$lib/server/db";
 import { hasTripAccess, isAdmin, setTripAccess, verifyPassword } from "$lib/server/auth";
 
 function normalizeNumber(value: FormDataEntryValue | null) {
@@ -141,5 +141,56 @@ export const actions = {
     );
 
     throw redirect(303, `/trips/${params.slug}/edit?day=${encodeURIComponent(dayDate)}&item=${encodeURIComponent(result.itemId)}&saved=1`);
+  },
+  saveTrip: async ({ request, params, platform, cookies }) => {
+    if (!platform?.env?.DB) {
+      return fail(503, {
+        message: "This editor needs a D1 binding. Use the deployed app or a Wrangler-backed local environment."
+      });
+    }
+
+    const access = await getTripAccessBySlug(params.slug, platform?.env);
+    if (!access) {
+      throw error(404, "Trip not found");
+    }
+
+    const admin = await isAdmin(cookies, platform?.env);
+    const unlocked = admin || !access.editPasswordHash || hasTripAccess(cookies, params.slug, "edit");
+    if (!unlocked) {
+      return fail(403, {
+        message: "Edit access is locked for this trip."
+      });
+    }
+
+    const form = await request.formData();
+    const title = normalizeText(form.get("title"));
+    const destination = normalizeText(form.get("destination"));
+    const startDate = normalizeText(form.get("startDate"));
+    const endDate = normalizeText(form.get("endDate"));
+    const travelerCount = normalizeNumber(form.get("travelerCount"));
+
+    if (!title || !destination || !startDate || !endDate || !travelerCount) {
+      return fail(400, {
+        message: "Trip title, destination, dates, and traveler count are required."
+      });
+    }
+
+    await updateTripBySlug(
+      params.slug,
+      {
+        title,
+        destination,
+        startDate,
+        endDate,
+        travelerCount,
+        coverImageUrl: normalizeText(form.get("coverImageUrl")),
+        isPrivate: form.get("isPrivate") === "on",
+        viewPassword: normalizeText(form.get("viewPassword")),
+        editPassword: normalizeText(form.get("editPassword"))
+      },
+      platform.env
+    );
+
+    throw redirect(303, `/trips/${params.slug}/edit?settings=saved`);
   }
 };
