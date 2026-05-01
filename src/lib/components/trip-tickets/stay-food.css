@@ -227,6 +227,32 @@
   color: var(--color-accent);
 }
 
+.shuttle-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+
+.shuttle-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  align-items: start;
+  padding: .95rem 1rem;
+  background: color-mix(in srgb, var(--color-muted) 44%, transparent);
+}
+
+.shuttle-note svg {
+  color: #2f535b;
+}
+
+.shuttle-note p {
+  margin: 0;
+  color: var(--color-foreground);
+  font-size: 12px;
+  line-height: 1.75;
+}
+
 .meal-tags,
 .room-tags {
   display: flex;

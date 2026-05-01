@@ -186,7 +186,8 @@
       { name: "checkOutTime", label: "Check-out time", placeholder: "10:00" },
       { name: "nights", label: "Nights", type: "number" },
       { name: "confirmationCode", label: "Confirmation code" },
-      { name: "contactPhone", label: "Contact phone" }
+      { name: "contactPhone", label: "Contact phone" },
+      { name: "shuttleInfo", label: "Shuttle / transfer notes", type: "textarea", span: 2 }
     ],
     restaurant: [
       { name: "reservationTime", label: "Reservation time", placeholder: "19:00" },

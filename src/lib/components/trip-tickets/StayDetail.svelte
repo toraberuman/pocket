@@ -48,6 +48,7 @@
   const total = $derived(firstText(detail.totalFare, detail.total, fareText(activity)) || computedRoomTotal());
   const confirmation = $derived(firstText(detail.confirmationCode, detail.bookingCode, detail.reservationCode));
   const contact = $derived(firstText(detail.contactPhone, detail.phone, activity.raw.place.phone));
+  const shuttleInfo = $derived(firstText(detail.shuttleInfo, detail.shuttle, detail.transferInfo, detail.pickupInfo));
   const mapSrc = $derived(mapEmbedUrl());
 
   function resolveRooms(): RoomInfo[] {
@@ -319,6 +320,16 @@
       </div>
     {/if}
   </section>
+
+  {#if shuttleInfo}
+    <section class="detail-section shuttle-section">
+      <p class="section-title"><PocketIcon name="bus" size={15} /> Shuttle</p>
+      <div class="shuttle-note">
+        <PocketIcon name="route" size={18} />
+        <p>{shuttleInfo}</p>
+      </div>
+    </section>
+  {/if}
 
   <section class="detail-section">
     <p class="section-title">Rooms ({rooms.length})</p>
