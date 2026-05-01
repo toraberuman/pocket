@@ -1,0 +1,96 @@
+Project pocket_trip_app {
+  database_type: "SQLite"
+  Note: "Pocket Trip app data model draft for D1"
+}
+
+Table trips {
+  id text [pk]
+  slug text [not null, unique]
+  title text [not null]
+  destination text [not null]
+  start_date text [not null]
+  end_date text [not null]
+  traveler_count integer [not null, default: 1]
+  cover_image_url text
+  notes_json text
+  is_private integer [not null, default: 0]
+  view_password_hash text
+  edit_password_hash text
+  updated_at text
+}
+
+Table places {
+  id text [pk]
+  maps_url text
+  google_place_id text
+  name text [not null]
+  native_name text
+  phone text
+  address text
+  website_url text
+  reservation_url text
+  lat real
+  lng real
+  updated_at text
+}
+
+Table trip_items {
+  id text [pk]
+  trip_id text [not null]
+  place_id text
+  day_date text [not null]
+  start_time text
+  end_time text
+  category text [not null]
+  subcategory text
+  reservation_status text
+  payment_method text
+  card_label text
+  amount real
+  currency text
+  notes text
+  detail_json text
+  updated_at text
+}
+
+Table expense_entries {
+  id text [pk]
+  trip_item_id text [not null]
+  label text [not null]
+  category text
+  original_amount real
+  original_currency text
+  paid_amount real
+  paid_currency text
+  fx_rate real
+  payment_method text
+  card_label text
+  paid_by text
+  split_basis text
+  expense_date text
+  statement_date text
+  is_reconciled integer [not null, default: 0]
+  memo text
+  created_at text [not null]
+  updated_at text [not null]
+}
+
+Table expense_splits {
+  id text [pk]
+  expense_entry_id text [not null]
+  person_name text [not null]
+  share_type text [not null]
+  share_value real
+  owed_amount real
+  owed_currency text
+  settled_amount real
+  settled_at text
+  memo text
+  created_at text [not null]
+  updated_at text [not null]
+}
+
+Ref: trip_items.trip_id > trips.id
+Ref: trip_items.place_id > places.id
+Ref: expense_entries.trip_item_id > trip_items.id
+Ref: expense_splits.expense_entry_id > expense_entries.id

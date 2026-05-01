@@ -1,13 +1,30 @@
+export type LocaleCode = "zh-TW" | "en";
+
 export type TripCategory =
-  | "交通"
-  | "住宿"
-  | "食"
-  | "景點"
-  | "購物"
-  | "體驗"
-  | "季節"
-  | "櫻花"
-  | "其他";
+  | "transport"
+  | "stay"
+  | "restaurant"
+  | "sight"
+  | "shopping"
+  | "experience"
+  | "other";
+
+export type TripSubcategory =
+  | "flight"
+  | "train"
+  | "taxi"
+  | "drive"
+  | "walk"
+  | "bus"
+  | "metro"
+  | "ferry"
+  | "transfer"
+  | "stay"
+  | "restaurant"
+  | "sight"
+  | "shopping"
+  | "experience"
+  | "other";
 
 export interface PlaceDraft {
   id: string;
@@ -30,6 +47,7 @@ export interface TripItemDraft {
   startTime?: string;
   endTime?: string;
   category: TripCategory;
+  subcategory?: TripSubcategory;
   reservationStatus?: string;
   paymentMethod?: string;
   cardLabel?: string;
@@ -48,6 +66,7 @@ export interface TripSummary {
   startDate: string;
   endDate: string;
   travelerCount: number;
+  defaultCurrency: string;
   coverImageUrl?: string;
   isPrivate?: boolean;
 }

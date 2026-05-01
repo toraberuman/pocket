@@ -1,6 +1,7 @@
 import { getTripFromCsv, listTripsFromCsv } from "$lib/server/csv-fallback";
-import type { TripDetail, TripSummary } from "$lib/types";
+import type { TripDetail, TripSubcategory, TripSummary } from "$lib/types";
 import { hashPassword } from "$lib/server/auth";
+import { defaultCurrencyCode, normalizeCurrency } from "$lib/currencies";
 
 export type SaveTripItemInput = {
   itemId?: string;
@@ -9,6 +10,7 @@ export type SaveTripItemInput = {
   startTime?: string;
   endTime?: string;
   category: string;
+  subcategory?: TripSubcategory | string;
   reservationStatus?: string;
   paymentMethod?: string;
   cardLabel?: string;
@@ -28,6 +30,7 @@ export type SaveTripItemInput = {
   checkIn?: string;
   checkOut?: string;
   imageUrl?: string;
+  detailFields?: Record<string, unknown>;
   detailJson?: Record<string, unknown>;
 };
 
@@ -38,11 +41,23 @@ export type CreateTripInput = {
   startDate: string;
   endDate: string;
   travelerCount: number;
+  defaultCurrency?: string;
   coverImageUrl?: string;
   isPrivate?: boolean;
   viewPassword?: string;
   editPassword?: string;
 };
+
+export class DuplicateTripSlugError extends Error {
+  constructor(slug: string) {
+    super(`Trip slug "${slug}" already exists.`);
+    this.name = "DuplicateTripSlugError";
+  }
+}
+
+export function normalizeTripSlug(slug: string) {
+  return slug.trim().toLowerCase();
+}
 
 export type UpdateTripInput = {
   title: string;
@@ -50,6 +65,7 @@ export type UpdateTripInput = {
   startDate: string;
   endDate: string;
   travelerCount: number;
+  defaultCurrency?: string;
   coverImageUrl?: string;
   isPrivate?: boolean;
   viewPassword?: string;
@@ -69,79 +85,91 @@ export async function listTrips(env?: Env): Promise<TripSummary[]> {
   try {
     const result = await env.DB.prepare(
       `select id, slug, title, destination, start_date as startDate, end_date as endDate,
-              traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate
+              traveler_count as travelerCount, default_currency as defaultCurrency,
+              cover_image_url as coverImageUrl, is_private as isPrivate
          from trips
         order by start_date desc`
     ).all<TripSummary>();
 
-    return result.results.length ? result.results : listTripsFromCsv();
+    return result.results.length ? result.results.map(withDefaultCurrency) : listTripsFromCsv();
   } catch {
     return listTripsFromCsv();
   }
 }
 
 export async function getTripBySlug(slug: string, env?: Env): Promise<TripDetail | null> {
+  const normalizedSlug = normalizeTripSlug(slug);
   if (!env?.DB) {
-    return getTripFromCsv(slug);
+    return getTripFromCsv(normalizedSlug);
   }
 
   try {
     const trip = await env.DB.prepare(
       `select id, slug, title, destination, start_date as startDate, end_date as endDate,
-              traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate, notes_json
+              traveler_count as travelerCount, default_currency as defaultCurrency,
+              cover_image_url as coverImageUrl, is_private as isPrivate, notes_json
          from trips
-        where slug = ?1
+        where lower(slug) = ?1
         limit 1`
     )
-      .bind(slug)
+      .bind(normalizedSlug)
       .first<TripSummary & { notes_json?: string }>();
 
-    if (!trip) return getTripFromCsv(slug);
+    if (!trip) return getTripFromCsv(normalizedSlug);
 
-    const itemRows = await env.DB.prepare(
-      `select
-          ti.id,
-          ti.trip_id as tripId,
-          ti.day_date as dayDate,
-          ti.start_time as startTime,
-          ti.end_time as endTime,
-          ti.category,
-          ti.reservation_status as reservationStatus,
-          ti.payment_method as paymentMethod,
-          ti.card_label as cardLabel,
-          ti.amount,
-          ti.currency,
-          ti.notes,
-          ti.detail_json as detailJson,
-          p.id as placeId,
-          p.maps_url as mapsUrl,
-          p.google_place_id as googlePlaceId,
-          p.name,
-          p.native_name as nativeName,
-          p.phone,
-          p.address,
-          p.website_url as websiteUrl,
-          p.reservation_url as reservationUrl,
-          p.lat,
-          p.lng
-        from trip_items ti
-        left join places p on p.id = ti.place_id
-        where ti.trip_id = ?1
-        order by ti.day_date asc, ti.start_time asc`
-    )
-      .bind(trip.id)
-      .all<Record<string, unknown>>();
+    let itemResults: Record<string, unknown>[] = [];
+    try {
+      const itemRows = await env.DB.prepare(
+        `select
+            ti.id,
+            ti.trip_id as tripId,
+            ti.day_date as dayDate,
+            ti.start_time as startTime,
+            ti.end_time as endTime,
+            ti.category,
+            ti.subcategory,
+            ti.reservation_status as reservationStatus,
+            ti.payment_method as paymentMethod,
+            ti.card_label as cardLabel,
+            ti.amount,
+            ti.currency,
+            ti.notes,
+            ti.detail_json as detailJson,
+            p.id as placeId,
+            p.maps_url as mapsUrl,
+            p.google_place_id as googlePlaceId,
+            p.name,
+            p.native_name as nativeName,
+            p.phone,
+            p.address,
+            p.website_url as websiteUrl,
+            p.reservation_url as reservationUrl,
+            p.lat,
+            p.lng
+          from trip_items ti
+          left join places p on p.id = ti.place_id
+          where ti.trip_id = ?1
+          order by ti.day_date asc, ti.start_time asc`
+      )
+        .bind(trip.id)
+        .all<Record<string, unknown>>();
+      itemResults = itemRows.results;
+    } catch (error) {
+      console.error("Failed to load trip items", error);
+    }
 
     const hydrated = {
       ...trip,
+      defaultCurrency: trip.defaultCurrency || defaultCurrencyCode,
       notes: trip.notes_json ? JSON.parse(trip.notes_json) : [],
-      items: itemRows.results.map((row) => ({
+      items: itemResults.map((row: Record<string, unknown>) => ({
         id: String(row.id),
         tripId: String(row.tripId),
         dayDate: String(row.dayDate),
         startTime: row.startTime ? String(row.startTime) : undefined,
         endTime: row.endTime ? String(row.endTime) : undefined,
         category: String(row.category) as TripDetail["items"][number]["category"],
+        subcategory: row.subcategory ? (String(row.subcategory) as TripDetail["items"][number]["subcategory"]) : undefined,
         reservationStatus: row.reservationStatus ? String(row.reservationStatus) : undefined,
         paymentMethod: row.paymentMethod ? String(row.paymentMethod) : undefined,
         cardLabel: row.cardLabel ? String(row.cardLabel) : undefined,
@@ -167,13 +195,14 @@ export async function getTripBySlug(slug: string, env?: Env): Promise<TripDetail
 
     return hydrated;
   } catch {
-    return getTripFromCsv(slug);
+    return getTripFromCsv(normalizedSlug);
   }
 }
 
 export async function getTripAccessBySlug(slug: string, env?: Env): Promise<TripAccess | null> {
+  const normalizedSlug = normalizeTripSlug(slug);
   if (!env?.DB) {
-    const trip = await getTripFromCsv(slug);
+    const trip = await getTripFromCsv(normalizedSlug);
     return trip
       ? {
           id: trip.id,
@@ -183,6 +212,7 @@ export async function getTripAccessBySlug(slug: string, env?: Env): Promise<Trip
           startDate: trip.startDate,
           endDate: trip.endDate,
           travelerCount: trip.travelerCount,
+          defaultCurrency: trip.defaultCurrency || defaultCurrencyCode,
           coverImageUrl: trip.coverImageUrl,
           isPrivate: false
         }
@@ -191,16 +221,17 @@ export async function getTripAccessBySlug(slug: string, env?: Env): Promise<Trip
 
   const trip = await env.DB.prepare(
     `select id, slug, title, destination, start_date as startDate, end_date as endDate,
-            traveler_count as travelerCount, cover_image_url as coverImageUrl, is_private as isPrivate,
+            traveler_count as travelerCount, default_currency as defaultCurrency,
+            cover_image_url as coverImageUrl, is_private as isPrivate,
             view_password_hash as viewPasswordHash, edit_password_hash as editPasswordHash
-       from trips
-      where slug = ?1
+      from trips
+      where lower(slug) = ?1
       limit 1`
   )
-    .bind(slug)
+    .bind(normalizedSlug)
     .first<TripAccess>();
 
-  return trip || null;
+  return trip ? withDefaultCurrency(trip) : null;
 }
 
 export async function createTrip(input: CreateTripInput, env?: Env) {
@@ -208,24 +239,32 @@ export async function createTrip(input: CreateTripInput, env?: Env) {
     throw new Error("D1 binding is not available in this environment.");
   }
 
-  const id = `trip:${input.slug}`;
+  const slug = normalizeTripSlug(input.slug);
+  const existing = await env.DB.prepare("select id from trips where lower(slug) = ?1 limit 1").bind(slug).first<{ id: string }>();
+  if (existing?.id) {
+    throw new DuplicateTripSlugError(slug);
+  }
+
+  const id = `trip:${slug}`;
   const viewPasswordHash = input.viewPassword ? await hashPassword(input.viewPassword) : null;
   const editPasswordHash = input.editPassword ? await hashPassword(input.editPassword) : null;
+  const defaultCurrency = normalizeCurrency(input.defaultCurrency);
 
   await env.DB.prepare(
     `insert into trips (
-       id, slug, title, destination, start_date, end_date, traveler_count, cover_image_url,
+       id, slug, title, destination, start_date, end_date, traveler_count, default_currency, cover_image_url,
        is_private, view_password_hash, edit_password_hash, notes_json, updated_at
-     ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, '[]', current_timestamp)`
+     ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, '[]', current_timestamp)`
   )
     .bind(
       id,
-      input.slug,
+      slug,
       input.title,
       input.destination,
       input.startDate,
       input.endDate,
       input.travelerCount,
+      defaultCurrency,
       input.coverImageUrl || null,
       input.isPrivate ? 1 : 0,
       viewPasswordHash,
@@ -233,7 +272,7 @@ export async function createTrip(input: CreateTripInput, env?: Env) {
     )
     .run();
 
-  return { id, slug: input.slug };
+  return { id, slug };
 }
 
 export async function updateTripBySlug(slug: string, input: UpdateTripInput, env?: Env) {
@@ -241,9 +280,10 @@ export async function updateTripBySlug(slug: string, input: UpdateTripInput, env
     throw new Error("D1 binding is not available in this environment.");
   }
 
-  const trip = await env.DB.prepare("select id from trips where slug = ?1 limit 1").bind(slug).first<{ id: string }>();
+  const normalizedSlug = normalizeTripSlug(slug);
+  const trip = await env.DB.prepare("select id from trips where lower(slug) = ?1 limit 1").bind(normalizedSlug).first<{ id: string }>();
   if (!trip?.id) {
-    throw new Error(`Trip ${slug} was not found.`);
+    throw new Error(`Trip ${normalizedSlug} was not found.`);
   }
 
   const current = await env.DB.prepare(
@@ -271,20 +311,22 @@ export async function updateTripBySlug(slug: string, input: UpdateTripInput, env
             start_date = ?4,
             end_date = ?5,
             traveler_count = ?6,
-            cover_image_url = ?7,
-            is_private = ?8,
-            view_password_hash = ?9,
-            edit_password_hash = ?10,
+            default_currency = ?7,
+            cover_image_url = ?8,
+            is_private = ?9,
+            view_password_hash = ?10,
+            edit_password_hash = ?11,
             updated_at = current_timestamp
-      where slug = ?1`
+      where lower(slug) = ?1`
   )
     .bind(
-      slug,
+      normalizedSlug,
       input.title,
       input.destination,
       input.startDate,
       input.endDate,
       input.travelerCount,
+      normalizeCurrency(input.defaultCurrency),
       input.coverImageUrl || null,
       input.isPrivate ? 1 : 0,
       viewPasswordHash,
@@ -298,13 +340,14 @@ export async function saveTripItemBySlug(slug: string, input: SaveTripItemInput,
     throw new Error("D1 binding is not available in this environment.");
   }
 
-  const trip = await env.DB.prepare("select id from trips where slug = ?1 limit 1").bind(slug).first<{ id: string }>();
+  const normalizedSlug = normalizeTripSlug(slug);
+  const trip = await env.DB.prepare("select id from trips where lower(slug) = ?1 limit 1").bind(normalizedSlug).first<{ id: string }>();
   if (!trip?.id) {
-    throw new Error(`Trip ${slug} was not found.`);
+    throw new Error(`Trip ${normalizedSlug} was not found.`);
   }
 
-  const itemId = input.itemId || `item:${slug}:${crypto.randomUUID()}`;
-  const placeId = input.placeId || `place:${slug}:${crypto.randomUUID()}`;
+  const itemId = input.itemId || `item:${normalizedSlug}:${crypto.randomUUID()}`;
+  const placeId = input.placeId || `place:${normalizedSlug}:${crypto.randomUUID()}`;
   const detailJson = buildDetailJson(input);
 
   await env.DB.prepare(
@@ -335,15 +378,16 @@ export async function saveTripItemBySlug(slug: string, input: SaveTripItemInput,
 
   await env.DB.prepare(
     `insert into trip_items (
-       id, trip_id, place_id, day_date, start_time, end_time, category,
+       id, trip_id, place_id, day_date, start_time, end_time, category, subcategory,
        reservation_status, payment_method, card_label, amount, currency, notes, detail_json, updated_at
-     ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, current_timestamp)
+     ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, current_timestamp)
      on conflict(id) do update set
        place_id = excluded.place_id,
        day_date = excluded.day_date,
        start_time = excluded.start_time,
        end_time = excluded.end_time,
        category = excluded.category,
+       subcategory = excluded.subcategory,
        reservation_status = excluded.reservation_status,
        payment_method = excluded.payment_method,
        card_label = excluded.card_label,
@@ -361,17 +405,32 @@ export async function saveTripItemBySlug(slug: string, input: SaveTripItemInput,
       input.startTime || null,
       input.endTime || null,
       input.category,
+      input.subcategory || null,
       input.reservationStatus || null,
       input.paymentMethod || null,
       input.cardLabel || null,
       input.amount ?? null,
-      input.currency || null,
+      normalizeCurrency(input.currency),
       input.notes || null,
       detailJson ? JSON.stringify(detailJson) : null
     )
     .run();
 
   return { itemId, placeId };
+}
+
+export async function deleteTripItemBySlug(slug: string, itemId: string, env?: Env) {
+  if (!env?.DB) {
+    throw new Error("D1 binding is not available in this environment.");
+  }
+
+  const normalizedSlug = normalizeTripSlug(slug);
+  const trip = await env.DB.prepare("select id from trips where lower(slug) = ?1 limit 1").bind(normalizedSlug).first<{ id: string }>();
+  if (!trip?.id) {
+    throw new Error(`Trip ${normalizedSlug} was not found.`);
+  }
+
+  await env.DB.prepare("delete from trip_items where id = ?1 and trip_id = ?2").bind(itemId, trip.id).run();
 }
 
 function buildDetailJson(input: SaveTripItemInput) {
@@ -385,15 +444,43 @@ function buildDetailJson(input: SaveTripItemInput) {
   assignDetail(detail, "checkIn", input.checkIn);
   assignDetail(detail, "checkOut", input.checkOut);
   assignDetail(detail, "imageUrl", input.imageUrl);
+  for (const [key, value] of Object.entries(input.detailFields || {})) {
+    assignDetail(detail, key, value);
+  }
 
   return Object.keys(detail).length ? detail : undefined;
 }
 
-function assignDetail(target: Record<string, unknown>, key: string, value?: string) {
-  if (value && value.trim()) {
-    target[key] = value.trim();
+function assignDetail(target: Record<string, unknown>, key: string, value?: unknown) {
+  if (Array.isArray(value)) {
+    if (value.length) {
+      target[key] = value;
+      return;
+    }
+    delete target[key];
+    return;
+  }
+
+  if (typeof value === "string") {
+    if (value.trim()) {
+      target[key] = value.trim();
+      return;
+    }
+    delete target[key];
+    return;
+  }
+
+  if (value && typeof value === "object") {
+    target[key] = value;
     return;
   }
 
   delete target[key];
+}
+
+function withDefaultCurrency<T extends { defaultCurrency?: string | null }>(trip: T): T & { defaultCurrency: string } {
+  return {
+    ...trip,
+    defaultCurrency: trip.defaultCurrency || defaultCurrencyCode
+  };
 }

@@ -10,6 +10,7 @@ export async function load({ params, platform, cookies }) {
 
   const admin = await isAdmin(cookies, platform?.env);
   const unlocked = admin || !access.viewPasswordHash || hasTripAccess(cookies, params.slug, "view");
+  const canEdit = admin || hasTripAccess(cookies, params.slug, "edit");
 
   if (!unlocked) {
     return {
@@ -18,7 +19,9 @@ export async function load({ params, platform, cookies }) {
         notes: [],
         items: []
       },
-      locked: true
+      locked: true,
+      admin,
+      canEdit: false
     };
   }
 
@@ -27,7 +30,7 @@ export async function load({ params, platform, cookies }) {
     throw error(404, "Trip not found");
   }
 
-  return { trip, locked: false };
+  return { trip, locked: false, admin, canEdit };
 }
 
 export const actions = {

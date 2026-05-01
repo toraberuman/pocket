@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* 
+ * POCKET DESIGN SYSTEM
+ * Japanese-inspired minimalist aesthetic
+ * 
+ * Principles:
+ * - Ma (間): Embrace negative space
+ * - Wabi-sabi: Beauty in simplicity
+ * - Shibui: Subtle, understated elegance
+ * 
+ * Color Palette:
+ * - Warm cream backgrounds (shiro-neri)
+ * - Deep charcoal text (sumi)
+ * - Terracotta accent (bengara)
+ * - Soft stone grays (nezumi)
+ */
+
+:root {
+  /* Core palette */
+  --background: oklch(0.975 0.005 80);           /* Warm cream - shiro-neri */
+  --foreground: oklch(0.18 0.01 60);             /* Deep charcoal - sumi */
+  --card: oklch(0.99 0.003 80);                  /* Paper white - washi */
+  --card-foreground: oklch(0.18 0.01 60);
+  --popover: oklch(0.99 0.003 80);
+  --popover-foreground: oklch(0.18 0.01 60);
+  
+  /* Interactive elements */
+  --primary: oklch(0.25 0.02 60);                /* Deep ink - bokuju */
+  --primary-foreground: oklch(0.975 0.005 80);
+  --secondary: oklch(0.94 0.008 75);             /* Light stone - usuzumi */
+  --secondary-foreground: oklch(0.25 0.02 60);
+  
+  /* Subtle backgrounds */
+  --muted: oklch(0.94 0.008 75);
+  --muted-foreground: oklch(0.45 0.01 60);       /* Stone gray - nezumi */
+  
+  /* Accent - warm terracotta */
+  --accent: oklch(0.52 0.12 35);                 /* Terracotta - bengara */
+  --accent-foreground: oklch(0.99 0.003 80);
+  
+  /* System colors */
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0.01 60);
+  
+  /* Borders & inputs */
+  --border: oklch(0.90 0.006 80);                /* Subtle divider */
+  --input: oklch(0.90 0.006 80);
+  --ring: oklch(0.52 0.12 35);
+  
+  /* Charts */
+  --chart-1: oklch(0.52 0.12 35);                /* Bengara */
+  --chart-2: oklch(0.55 0.06 180);               /* Asagi (pale blue) */
+  --chart-3: oklch(0.40 0.04 220);               /* Kon (dark blue) */
+  --chart-4: oklch(0.65 0.10 85);                /* Kitsune (fox brown) */
+  --chart-5: oklch(0.60 0.08 70);                /* Kuchiba (fallen leaf) */
+  
+  /* System */
+  --radius: 0.125rem;                            /* Minimal rounding - crisp edges */
+  
+  /* Sidebar */
+  --sidebar: oklch(0.985 0.003 80);
+  --sidebar-foreground: oklch(0.18 0.01 60);
+  --sidebar-primary: oklch(0.25 0.02 60);
+  --sidebar-primary-foreground: oklch(0.985 0.003 80);
+  --sidebar-accent: oklch(0.94 0.008 75);
+  --sidebar-accent-foreground: oklch(0.25 0.02 60);
+  --sidebar-border: oklch(0.90 0.006 80);
+  --sidebar-ring: oklch(0.52 0.12 35);
+}
+
+.dark {
+  /* Core palette - night mode */
+  --background: oklch(0.12 0.008 60);            /* Deep charcoal - yoru */
+  --foreground: oklch(0.92 0.005 80);            /* Soft cream - tsuki */
+  --card: oklch(0.16 0.008 60);                  /* Slightly lighter */
+  --card-foreground: oklch(0.92 0.005 80);
+  --popover: oklch(0.16 0.008 60);
+  --popover-foreground: oklch(0.92 0.005 80);
+  
+  /* Interactive elements */
+  --primary: oklch(0.92 0.005 80);
+  --primary-foreground: oklch(0.12 0.008 60);
+  --secondary: oklch(0.22 0.008 60);
+  --secondary-foreground: oklch(0.92 0.005 80);
+  
+  /* Subtle backgrounds */
+  --muted: oklch(0.22 0.008 60);
+  --muted-foreground: oklch(0.58 0.008 60);
+  
+  /* Accent - warm terracotta (lighter in dark mode) */
+  --accent: oklch(0.60 0.12 38);
+  --accent-foreground: oklch(0.12 0.008 60);
+  
+  /* System colors */
+  --destructive: oklch(0.50 0.18 25);
+  --destructive-foreground: oklch(0.92 0.005 80);
+  
+  /* Borders & inputs */
+  --border: oklch(0.26 0.008 60);
+  --input: oklch(0.26 0.008 60);
+  --ring: oklch(0.60 0.12 38);
+  
+  /* Charts */
+  --chart-1: oklch(0.60 0.12 38);
+  --chart-2: oklch(0.58 0.06 180);
+  --chart-3: oklch(0.50 0.04 220);
+  --chart-4: oklch(0.68 0.10 85);
+  --chart-5: oklch(0.62 0.08 70);
+  
+  /* Sidebar */
+  --sidebar: oklch(0.14 0.008 60);
+  --sidebar-foreground: oklch(0.92 0.005 80);
+  --sidebar-primary: oklch(0.60 0.12 38);
+  --sidebar-primary-foreground: oklch(0.92 0.005 80);
+  --sidebar-accent: oklch(0.22 0.008 60);
+  --sidebar-accent-foreground: oklch(0.92 0.005 80);
+  --sidebar-border: oklch(0.26 0.008 60);
+  --sidebar-ring: oklch(0.60 0.12 38);
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

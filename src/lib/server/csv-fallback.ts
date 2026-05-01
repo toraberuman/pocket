@@ -8,6 +8,7 @@ const fallbackTripMeta: Record<string, Omit<TripSummary, "id" | "slug">> = {
     startDate: "2026-03-31",
     endDate: "2026-04-08",
     travelerCount: 4,
+    defaultCurrency: "KRW",
     coverImageUrl:
       "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=1600&q=80"
   }

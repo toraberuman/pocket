@@ -1,246 +1,234 @@
 <script lang="ts">
   import type { PageData } from "./$types";
+  import PocketIcon from "$lib/components/PocketIcon.svelte";
+  import { toTripListCard } from "$lib/view-models/trip";
 
   let { data }: { data: PageData } = $props();
+
+  const tripCards = $derived((data.trips ?? []).map((trip) => toTripListCard(trip)));
+
+  const statusLabels = {
+    upcoming: "Upcoming",
+    ongoing: "In Progress",
+    completed: "Completed"
+  };
 </script>
 
 <svelte:head>
   <title>Pocket Trips</title>
 </svelte:head>
 
-<main class="shell home">
-  <section class="home-hero">
-    <div class="home-hero__copy">
-      <p class="eyebrow">Pocket Trips</p>
-      <h1>Travel plans, but actually usable.</h1>
-      <p>
-        A trip viewer and editor built for real itineraries. Use preview mode for travelers, and switch into
-        admin mode when you need to create trips, manage passwords, and update D1-backed data.
-      </p>
-    </div>
+<main class="pocket-page">
+  <div class="trip-list-shell">
+    <header class="trip-list-header">
+      <p>Pocket</p>
+      <h1>Your Trips</h1>
+    </header>
 
-    <div class="home-hero__panel card">
-      <span>Stack</span>
-      <strong>SvelteKit + TypeScript</strong>
-      <strong>Cloudflare Workers + D1</strong>
-      <strong>Places resolve + trip access control</strong>
-      {#if data.isAdmin}
-        <div class="hero-actions">
-          <a class="hero-action" href="/admin/trips/new">Create new trip</a>
-          <form method="POST" action="/admin/logout">
-            <button class="hero-action hero-action--secondary" type="submit">Log out</button>
-          </form>
-        </div>
-      {:else}
-        <a class="hero-action" href="/admin/login">Admin login</a>
-      {/if}
-    </div>
-  </section>
-
-  <section class="trip-grid">
-    {#each data.trips as trip}
-      <a class="trip-card card" href={`/trips/${trip.slug}`}>
-        <div
-          class="trip-card__cover"
-          style={`background-image: linear-gradient(180deg, rgba(11,16,25,.08), rgba(11,16,25,.62)), url('${trip.coverImageUrl || ""}')`}
-        >
-          <div class="trip-card__overlay">
-            <span>{trip.destination}</span>
-            <strong>{trip.startDate} - {trip.endDate}</strong>
-          </div>
-        </div>
-        <div class="trip-card__body">
-          <div class="trip-card__title">
+    <section class="trip-list" aria-label="Trips">
+      {#each tripCards as trip}
+        <a class="trip-row" href={`/trips/${trip.slug}`}>
+          <div class="trip-row__content">
+            <span class="trip-status">{trip.isPrivate ? "Private" : statusLabels[trip.status]}</span>
             <h2>{trip.title}</h2>
-            {#if trip.isPrivate}<span class="trip-lock">Private</span>{/if}
+            <div class="trip-meta">
+              <span aria-hidden="true"><PocketIcon name="map-pin" size={12} /></span>
+              <p>{trip.destination}</p>
+              <span aria-hidden="true"><PocketIcon name="calendar" size={12} /></span>
+              <p>{trip.dateRange}</p>
+            </div>
           </div>
-          <p>{trip.travelerCount} people</p>
-        </div>
-      </a>
-    {/each}
+          <span class="trip-row__arrow" aria-hidden="true">›</span>
+        </a>
+      {/each}
 
-    {#if data.isAdmin}
-      <a class="trip-card trip-card--new card" href="/admin/trips/new">
-        <div class="trip-card__body">
-          <p class="eyebrow">Admin mode</p>
-          <h2>Create a new trip</h2>
-          <p>Set title, slug, dates, cover image, and separate view/edit passwords.</p>
+      {#if !tripCards.length}
+        <div class="empty-state">
+          <p>No trips yet.</p>
+          <a href="/admin/trips/new">Create your first trip</a>
         </div>
-      </a>
-    {/if}
-  </section>
+      {/if}
+    </section>
+
+    <footer class="trip-list-footer">
+      {#if data.isAdmin}
+        <a href="/admin/trips/new">+ New Trip</a>
+        <form method="POST" action="/admin/logout">
+          <button type="submit">Log out</button>
+        </form>
+      {:else}
+        <a href="/admin/login">Admin Login</a>
+      {/if}
+    </footer>
+  </div>
 </main>
 
 <style>
-  .home {
-    padding: 28px 0 64px;
+  .pocket-page {
+    min-height: 100vh;
+    padding: var(--space-pocket-page-y) var(--space-pocket-page-x);
+    background: var(--color-background);
+    color: var(--color-foreground);
   }
 
-  .home-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 22px;
-    align-items: end;
-    padding: 20px 0 28px;
+  .trip-list-shell {
+    width: min(var(--content-pocket-sm), 100%);
+    margin: 0 auto;
   }
 
-  .home-hero__copy h1 {
-    margin: 0 0 14px;
-    font-size: clamp(2.9rem, 6vw, 5.2rem);
-    line-height: 0.96;
-    letter-spacing: 0;
-    max-width: 10ch;
-    text-wrap: pretty;
+  .trip-list-header {
+    margin-bottom: 4rem;
+    text-align: center;
   }
 
-  .home-hero__copy p:last-child {
-    width: min(760px, 100%);
-    margin: 0;
-    color: var(--muted);
-    font-size: 1.08rem;
-  }
-
-  .home-hero__panel {
-    display: grid;
-    gap: 10px;
-    padding: 22px;
-    background: #fff;
-  }
-
-  .home-hero__panel span {
-    color: var(--muted);
+  .trip-list-header p,
+  .trip-status,
+  .trip-meta,
+  .trip-list-footer,
+  .empty-state {
+    font-family: var(--font-pocket-mono);
+    letter-spacing: .24em;
     text-transform: uppercase;
-    font-size: 0.82rem;
-    font-weight: 700;
   }
 
-  .home-hero__panel strong {
-    font-size: 1.1rem;
-    line-height: 1.3;
+  .trip-list-header p {
+    margin: 0 0 1rem;
+    color: var(--color-muted-foreground);
+    font-size: .62rem;
   }
 
-  .hero-actions {
-    margin-top: 10px;
+  .trip-list-header h1 {
+    margin: 0;
+    color: var(--color-foreground);
+    font-size: clamp(1.5rem, 5vw, 1.9rem);
+    font-weight: 300;
+    letter-spacing: 0;
+  }
+
+  .trip-list {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .trip-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    align-items: start;
+    padding: 1.5rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    background: var(--color-card);
+    transition:
+      border-color 500ms ease,
+      color 500ms ease,
+      transform 500ms ease;
+  }
+
+  .trip-row:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .trip-status {
+    display: inline-block;
+    margin-bottom: .75rem;
+    padding: .18rem .5rem;
+    background: var(--color-muted);
+    color: var(--color-muted-foreground);
+    font-size: .56rem;
+    letter-spacing: .08em;
+  }
+
+  .trip-row h2 {
+    margin: 0 0 .55rem;
+    color: var(--color-foreground);
+    font-size: 1.06rem;
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: 0;
+    transition: color 500ms ease;
+  }
+
+  .trip-row:hover h2 {
+    color: var(--color-accent);
+  }
+
+  .trip-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .hero-actions :global(form) {
-    margin: 0;
-  }
-
-  .hero-action {
-    margin-top: 10px;
-    display: inline-flex;
+    gap: .45rem .9rem;
     align-items: center;
-    justify-content: center;
-    width: fit-content;
-    padding: 12px 16px;
-    border-radius: 999px;
-    background: #1d2433;
-    color: white;
-    border: 0;
-    font: inherit;
-    cursor: pointer;
+    color: var(--color-muted-foreground);
+    font-size: .72rem;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
-  .hero-actions .hero-action {
-    margin-top: 0;
+  .trip-meta span {
+    color: color-mix(in srgb, var(--color-muted-foreground) 78%, transparent);
+    font-size: .58rem;
+    letter-spacing: .1em;
   }
 
-  .hero-action--secondary {
-    background: #eef1f5;
-    color: #1d2433;
-  }
-
-  .eyebrow {
-    margin: 0 0 12px;
-    color: var(--muted);
-    text-transform: uppercase;
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-
-  .trip-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 18px;
-  }
-
-  .trip-card {
-    overflow: hidden;
-  }
-
-  .trip-card__cover {
-    aspect-ratio: 1.18;
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: end;
-  }
-
-  .trip-card__overlay {
-    width: 100%;
-    padding: 18px;
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-    gap: 12px;
-    color: white;
-  }
-
-  .trip-card__overlay span,
-  .trip-card__overlay strong {
-    display: block;
-  }
-
-  .trip-card__overlay span {
-    font-size: 0.92rem;
-    color: rgba(255,255,255,.75);
-  }
-
-  .trip-card__body {
-    padding: 18px;
-  }
-
-  .trip-card__title {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: start;
-  }
-
-  .trip-card__body h2 {
-    margin: 0 0 6px;
-    font-size: 1.3rem;
-  }
-
-  .trip-card__body p {
+  .trip-meta p {
     margin: 0;
-    color: var(--muted);
   }
 
-  .trip-lock {
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: rgba(20, 31, 49, 0.06);
-    color: var(--muted);
-    font-size: 0.76rem;
-    font-weight: 700;
+  .trip-row__arrow {
+    margin-top: .2rem;
+    color: var(--color-muted-foreground);
+    font-size: 1.45rem;
+    line-height: 1;
+    transition: color 500ms ease;
   }
 
-  .trip-card--new {
-    min-height: 360px;
-    display: grid;
-    align-items: end;
-    border-style: dashed;
-    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.88));
+  .trip-row:hover .trip-row__arrow {
+    color: var(--color-accent);
   }
 
-  @media (max-width: 920px) {
-    .home-hero {
-      grid-template-columns: 1fr;
-    }
+  .trip-list-footer {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    color: var(--color-muted-foreground);
+    font-size: .68rem;
+    letter-spacing: .08em;
+  }
+
+  .trip-list-footer form {
+    margin: 0;
+  }
+
+  .trip-list-footer a,
+  .trip-list-footer button,
+  .empty-state a {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-transform: uppercase;
+    transition: color 300ms ease;
+  }
+
+  .trip-list-footer a:hover,
+  .trip-list-footer button:hover,
+  .empty-state a:hover {
+    color: var(--color-accent);
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    color: var(--color-muted-foreground);
+    text-align: center;
+    font-size: .72rem;
+    letter-spacing: .08em;
+  }
+
+  .empty-state p {
+    margin: 0 0 1rem;
   }
 </style>

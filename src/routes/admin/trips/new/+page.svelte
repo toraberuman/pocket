@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActionData } from "./$types";
+  import { currencyOptions, defaultCurrencyCode } from "$lib/currencies";
 
   let { form }: { form: ActionData } = $props();
 </script>
@@ -31,6 +32,14 @@
         <label class="field">
           <span>Travelers</span>
           <input type="number" name="travelerCount" value="1" min="1" />
+        </label>
+        <label class="field">
+          <span>Main currency</span>
+          <select name="defaultCurrency">
+            {#each currencyOptions as option}
+              <option value={option.code} selected={option.code === defaultCurrencyCode}>{option.label}</option>
+            {/each}
+          </select>
         </label>
         <label class="field">
           <span>Start date</span>
@@ -94,10 +103,13 @@
     display: grid;
     gap: 8px;
   }
-  .field input {
+  .field input,
+  .field select {
     padding: 14px 15px;
     border-radius: 18px;
     border: 1px solid var(--border);
+    background: #fff;
+    font: inherit;
   }
   .field--span-2 {
     grid-column: span 2;

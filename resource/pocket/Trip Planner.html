@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pocket — Trip Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css"/>
+<style>
+  body { margin: 0; background: #efe9dc; font-family: "Inter", sans-serif; }
+  .canvas-bg { background: #efe9dc; }
+  .root-loader { position: fixed; inset: 0; display: grid; place-items: center; color: #888; font-family: monospace; }
+</style>
+</head>
+<body>
+<div id="root"><div class="root-loader">loading…</div></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="timeline.jsx"></script>
+<script type="text/babel" src="overview.jsx"></script>
+<script type="text/babel" src="other-screens.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#d2552c",
+  "radius": 14,
+  "density": 1,
+  "dark": false,
+  "displayFont": "Fraunces",
+  "timelineStyle": "dotted"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(() => {
+    const r = document.documentElement;
+    r.style.setProperty("--accent", tweaks.accent);
+    r.style.setProperty("--radius", tweaks.radius + "px");
+    r.style.setProperty("--density", tweaks.density);
+    if (tweaks.displayFont === "Fraunces") {
+      r.style.setProperty("--serif", '"Fraunces", Georgia, serif');
+    } else if (tweaks.displayFont === "Source Serif") {
+      r.style.setProperty("--serif", '"Source Serif 4", Georgia, serif');
+    } else {
+      r.style.setProperty("--serif", '"Inter", sans-serif');
+    }
+    document.body.classList.toggle("dark", tweaks.dark);
+  }, [tweaks]);
+
+  return (
+    <>
+      <DesignCanvas background={tweaks.dark ? "#1a1813" : "#efe9dc"}>
+        <DCSection id="hero" title="Daily timeline" subtitle="Editorial hour-rail. Tap rows to expand, transit legs sit between activities.">
+          <DCArtboard id="t-editorial" label="Day 01 · Tokyo" width={390} height={844}>
+            <Screen initialView="timeline" timelineStyle="editorial" initialDay={0}/>
+          </DCArtboard>
+          <DCArtboard id="t-editorial-2" label="Day 02 · Tokyo" width={390} height={844}>
+            <Screen initialView="timeline" timelineStyle="editorial" initialDay={1}/>
+          </DCArtboard>
+          <DCArtboard id="t-editorial-4" label="Day 04 · Hakone" width={390} height={844}>
+            <Screen initialView="timeline" timelineStyle="editorial" initialDay={3}/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="overview" title="Trip overview" subtitle="Map ↔ list toggle, the route across Japan.">
+          <DCArtboard id="ov-map" label="Map view" width={390} height={844}>
+            <Screen initialView="overview" timelineStyle="editorial"/>
+          </DCArtboard>
+          <DCArtboard id="ov-list" label="List view" width={390} height={844}>
+            <ScreenWithListView/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="home" title="Home & Detail" subtitle="Trips catalogue, activity detail.">
+          <DCArtboard id="home-list" label="My trips" width={390} height={844}>
+            <Screen initialView="home" timelineStyle="editorial"/>
+          </DCArtboard>
+          <DCArtboard id="detail" label="Activity detail" width={390} height={844}>
+            <Screen initialView="detail" timelineStyle="editorial"/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="utils" title="Budget & Pack" subtitle="Cost tracking, the bag, adding plans.">
+          <DCArtboard id="budget" label="Budget" width={390} height={844}>
+            <Screen initialView="budget" timelineStyle="editorial"/>
+          </DCArtboard>
+          <DCArtboard id="pack" label="Packing list" width={390} height={844}>
+            <Screen initialView="packing" timelineStyle="editorial"/>
+          </DCArtboard>
+          <DCArtboard id="add" label="Add activity (sheet)" width={390} height={844}>
+            <ScreenWithSheet/>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Aesthetic">
+          <TweakColor label="Accent" value={tweaks.accent} onChange={v => setTweak("accent", v)}/>
+          <TweakSelect label="Display font" value={tweaks.displayFont} onChange={v => setTweak("displayFont", v)}
+            options={[{label:"Fraunces", value:"Fraunces"},{label:"Source Serif", value:"Source Serif"},{label:"Inter (sans)", value:"Inter"}]}/>
+          <TweakToggle label="Dark mode" value={tweaks.dark} onChange={v => setTweak("dark", v)}/>
+        </TweakSection>
+        <TweakSection label="Layout">
+          <TweakSlider label="Radius" min={0} max={24} step={1} value={tweaks.radius} onChange={v => setTweak("radius", v)} unit="px"/>
+          <TweakSlider label="Density" min={0.85} max={1.2} step={0.05} value={tweaks.density} onChange={v => setTweak("density", v)} unit="×"/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+// Wrappers so artboards open in specific sub-states
+function ScreenWithListView() {
+  const ref = React.useRef();
+  React.useEffect(() => {
+    // poke into screen — too involved; just render an inline simplified version
+  }, []);
+  return <ScreenForced view="overview" overviewView="list"/>;
+}
+function ScreenWithSheet() {
+  return <ScreenForced view="timeline" sheet/>;
+}
+
+// Lightweight forced variant — duplicates Screen but with overrides. To keep things simple, we'll just use Screen with tweaks and force open via effect.
+function ScreenForced({ view, overviewView, sheet }) {
+  const [v, setV] = React.useState(view);
+  const [ov, setOv] = React.useState(overviewView || "map");
+  const [open, setOpen] = React.useState(!!sheet);
+  const trip = window.TRIP_DATA;
+  return (
+    <div className="screen serif-display">
+      <StatusBar/>
+      <div className="scroll">
+        {v === "overview" && <TripOverview trip={trip} view={ov} onView={setOv} onBack={() => {}}/>}
+        {v === "timeline" && (
+          <>
+            <TimelineHeader trip={trip} dayIdx={0} onBack={() => {}}/>
+            <DayStrip days={trip.days} active={0} onChange={() => {}}/>
+            <TimelineCards trip={trip} expandedId={null} dayIdx={0} dragId={null} dragOver={null} dispatch={() => {}}/>
+          </>
+        )}
+      </div>
+      {open && <AddActivitySheet onClose={() => setOpen(false)} onSave={() => setOpen(false)}/>}
+      <TabBar active={v === "overview" ? "map" : "plan"} onChange={() => {}}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

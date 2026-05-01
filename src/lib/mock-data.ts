@@ -4,7 +4,7 @@ export const demoTrips: TripSummary[] = [
   {
     id: "trip-korea-2026",
     slug: "2026korea",
-    title: "2026.04 韓國賞櫻",
+    title: "2026 Korea Spring Trip",
     destination: "South Korea",
     startDate: "2026-04-02",
     endDate: "2026-04-08",
@@ -16,7 +16,7 @@ export const demoTrips: TripSummary[] = [
 
 export const demoTripDetail: TripDetail = {
   ...demoTrips[0],
-  notes: ["同行 4 人", "以包車 + 飯店切換為主", "之後要同步回 Google Drive CSV"],
+  notes: ["Demo trip data"],
   items: [
     {
       id: "ke2086",
@@ -24,19 +24,21 @@ export const demoTripDetail: TripDetail = {
       dayDate: "2026-04-02",
       startTime: "12:00",
       endTime: "15:30",
-      category: "交通",
+      category: "transport",
+      subcategory: "flight",
       amount: 0,
       currency: "KRW",
-      notes: "TPE桃園 12:00 - PUS釜山 15:30",
+      notes: "TPE 12:00 - PUS 15:30",
       detailJson: {
-        flightNo: "KE2086",
-        fromCode: "TPE",
-        toCode: "PUS",
-        airline: "大韓航空"
+        flightNumber: "KE2086",
+        fromAirportCode: "TPE",
+        toAirportCode: "PUS",
+        airline: "Korean Air",
+        mode: "flight"
       },
       place: {
         id: "place-pus",
-        name: "大韓航空 KE2086",
+        name: "Korean Air KE2086",
         nativeName: "대한항공",
         mapsUrl: "https://maps.google.com"
       }
@@ -46,9 +48,10 @@ export const demoTripDetail: TripDetail = {
       tripId: "trip-korea-2026",
       dayDate: "2026-04-02",
       startTime: "17:00",
-      category: "住宿",
-      reservationStatus: "已付款",
-      paymentMethod: "刷卡",
+      category: "stay",
+      subcategory: "stay",
+      reservationStatus: "paid",
+      paymentMethod: "card",
       cardLabel: "Richart",
       amount: 689041,
       currency: "KRW",
@@ -57,14 +60,14 @@ export const demoTripDetail: TripDetail = {
         roomType: "Cabin U Ocean Village View(9~11F)",
         checkIn: "16:00",
         checkOut: "12:00",
-        meals: "素泊"
+        meals: "breakfast"
       },
       place: {
         id: "place-ananti",
         name: "Ananti at Busan Village",
         nativeName: "아난티 앳 부산 빌라쥬",
         phone: "051-662-7100",
-        address: "46083 부산 기장군 기장읍 기장해안로 267-7",
+        address: "Busan",
         websiteUrl: "https://ananti.kr/zh/atbusan",
         mapsUrl: "https://maps.app.goo.gl/kV29t6RAJy5iHJyV6",
         lat: 35.198,
@@ -76,14 +79,15 @@ export const demoTripDetail: TripDetail = {
       tripId: "trip-korea-2026",
       dayDate: "2026-04-02",
       startTime: "19:00",
-      category: "食",
-      paymentMethod: "現金",
+      category: "restaurant",
+      subcategory: "restaurant",
+      paymentMethod: "cash",
       amount: 33000,
       currency: "KRW",
-      notes: "海鮮刀削麵、冷麵、餃子、海苔飯捲",
+      notes: "Dinner",
       place: {
         id: "place-samwon",
-        name: "晚餐 Samwon Nuddle House",
+        name: "Samwon Noodle House",
         nativeName: "삼원면옥",
         mapsUrl: "https://maps.app.goo.gl/YdZ7dmj2y1uKzXpcA"
       }
